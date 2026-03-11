@@ -3,10 +3,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { DelegaClient } from "./delega-client.js";
 
-// Support both DELEGA_API_URL and legacy DELEGA_API_URL
 // DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership)
 const client = new DelegaClient(
-  process.env.DELEGA_API_URL || process.env.DELEGA_API_URL,
+  process.env.DELEGA_API_URL,
   process.env.DELEGA_AGENT_KEY,
 );
 
