@@ -24,3 +24,17 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Validate server.json versions match package.json
+        run: |
+          PKG_VER=$(node -p "require('./package.json').version")
+          SRV_VER=$(node -p "require('./server.json').version")
+          SRV_PKG_VER=$(node -p "require('./server.json').packages[0].version")
+          echo "package.json: $PKG_VER"
+          echo "server.json (top): $SRV_VER"
+          echo "server.json (packages[0]): $SRV_PKG_VER"
+          if [ "$PKG_VER" != "$SRV_VER" ] || [ "$PKG_VER" != "$SRV_PKG_VER" ]; then
+            echo "::error::Version mismatch! package.json=$PKG_VER server.json=$SRV_VER packages[0]=$SRV_PKG_VER"
+            exit 1
+          fi
+          echo "✅ All versions match: $PKG_VER"
