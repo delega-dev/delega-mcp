@@ -1,18 +1,22 @@
-name: Publish to npm
+name: Publish to npm + MCP Registry
 
 on:
   push:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    environment: npm
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -37,20 +41,49 @@ jobs:
             exit 1
           fi
 
-      - name: Publish to npm
+      - name: Publish to npm (OIDC trusted publishing)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # Post-publish: register/update on MCP Registry
-  # Uncomment when MCP Registry API is available
-  # mcp-registry:
-  #   needs: publish
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Update MCP Registry
-  #       run: |
-  #         curl -X POST "https://registry.modelcontextprotocol.io/v1/packages" \
-  #           -H "Authorization: Bearer ${{ secrets.MCP_REGISTRY_TOKEN }}" \
-  #           -H "Content-Type: application/json" \
-  #           -d '{"name": "@delega-dev/mcp", "version": "${{ github.ref_name }}"}'
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
+          if [ -n "$PREV_TAG" ]; then
+            echo "## Changes since $PREV_TAG" > /tmp/changelog.md
+            echo "" >> /tmp/changelog.md
+            git log "$PREV_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges >> /tmp/changelog.md
+          else
+            echo "## Initial release" > /tmp/changelog.md
+            echo "" >> /tmp/changelog.md
+            git log --pretty=format:"- %s (%h)" --no-merges >> /tmp/changelog.md
+          fi
+          cat /tmp/changelog.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file /tmp/changelog.md
+
+  mcp-registry:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish to MCP Registry
+        env:
+          MCP_REGISTRY_TOKEN: ${{ secrets.MCP_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "$MCP_REGISTRY_TOKEN" ]; then
+            echo "⚠️ MCP_REGISTRY_TOKEN not set — skipping registry publish"
+            exit 0
+          fi
+          # Submit package to MCP Registry via smithery CLI
+          npx -y @anthropic/mcp-registry-cli publish \
+            --name "@delega-dev/mcp" \
+            --version "${GITHUB_REF_NAME#v}" \
+            --repository "https://github.com/delega-dev/delega-mcp" \
+            --token "$MCP_REGISTRY_TOKEN" || echo "⚠️ MCP Registry publish failed (non-fatal)"
