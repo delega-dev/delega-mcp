@@ -71,7 +71,7 @@ export class DelegaClient {
     return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks`, undefined, query);
   }
 
-  async getTask(taskId: number) {
+  async getTask(taskId: string | number) {
     return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
@@ -87,7 +87,7 @@ export class DelegaClient {
   }
 
   async updateTask(
-    taskId: number,
+    taskId: string | number,
     data: {
       content?: string;
       description?: string;
@@ -100,18 +100,18 @@ export class DelegaClient {
     return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${taskId}`, data);
   }
 
-  async completeTask(taskId: number) {
+  async completeTask(taskId: string | number) {
     return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${taskId}/complete`);
   }
 
-  async deleteTask(taskId: number) {
+  async deleteTask(taskId: string | number) {
     return this.request<unknown>("DELETE", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
   // ── Comments ──
 
   async addComment(
-    taskId: number,
+    taskId: string | number,
     data: { content: string; author?: string },
   ) {
     return this.request<unknown>(

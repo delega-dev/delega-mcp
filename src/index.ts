@@ -86,7 +86,7 @@ server.tool(
   "get_task",
   "Get full details of a specific task including subtasks",
   {
-    task_id: z.number().int().describe("The task ID"),
+    task_id: z.union([z.string(), z.number()]).describe("The task ID (use the ID from list_tasks, e.g. '3a7d...')"),
   },
   async ({ task_id }) => {
     try {
@@ -138,7 +138,7 @@ server.tool(
   "update_task",
   "Update an existing task's fields",
   {
-    task_id: z.number().int().describe("The task ID to update"),
+    task_id: z.union([z.string(), z.number()]).describe("The task ID to update"),
     content: z.string().optional().describe("New task title / content"),
     description: z.string().optional().describe("New description"),
     labels: z.array(z.string()).optional().describe("New labels"),
@@ -164,7 +164,7 @@ server.tool(
   "complete_task",
   "Mark a task as completed",
   {
-    task_id: z.number().int().describe("The task ID to complete"),
+    task_id: z.union([z.string(), z.number()]).describe("The task ID to complete"),
   },
   async ({ task_id }) => {
     try {
@@ -186,7 +186,7 @@ server.tool(
   "delete_task",
   "Delete a task permanently",
   {
-    task_id: z.number().int().describe("The task ID to delete"),
+    task_id: z.union([z.string(), z.number()]).describe("The task ID to delete"),
   },
   async ({ task_id }) => {
     try {
@@ -206,7 +206,7 @@ server.tool(
   "add_comment",
   "Add a comment to a task",
   {
-    task_id: z.number().int().describe("The task ID to comment on"),
+    task_id: z.union([z.string(), z.number()]).describe("The task ID to comment on"),
     content: z.string().describe("Comment text"),
     author: z.string().optional().describe("Comment author name"),
   },
