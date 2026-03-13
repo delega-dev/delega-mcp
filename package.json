@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
-    "prepublishOnly": "npm run build"
+    "prepublish-check": "bash scripts/prepublish-check.sh",
+    "prepublishOnly": "npm run prepublish-check && npm run build"
   },
   "keywords": [
     "mcp",
