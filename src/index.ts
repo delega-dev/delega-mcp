@@ -35,11 +35,22 @@ function formatProject(p: any): string {
   return `[#${p.id}] ${p.name}`;
 }
 
+function maskApiKey(key: string): string {
+  if (key.length <= 12) return key;
+  return `${key.slice(0, 8)}...${key.slice(-4)}`;
+}
+
 function formatAgent(a: any): string {
   const lines: string[] = [];
   lines.push(`[#${a.id}] ${a.name}${a.display_name ? ` (${a.display_name})` : ""}`);
   if (a.description) lines.push(`  Description: ${a.description}`);
-  if (a.api_key) lines.push(`  API Key: ${a.api_key}`);
+  if (a.api_key) {
+    if (process.env.DELEGA_REVEAL_AGENT_KEYS === "1") {
+      lines.push(`  API Key: ${a.api_key}`);
+    } else {
+      lines.push(`  API Key Preview: ${maskApiKey(a.api_key)}`);
+    }
+  }
   if (a.permissions?.length) lines.push(`  Permissions: ${a.permissions.join(", ")}`);
   if (a.active !== undefined) lines.push(`  Active: ${a.active ? "yes" : "no"}`);
   return lines.join("\n");
@@ -308,8 +319,11 @@ server.tool(
   async (params) => {
     try {
       const agent = await client.registerAgent(params);
+      const warning = process.env.DELEGA_REVEAL_AGENT_KEYS === "1"
+        ? "\n\n⚠️ Save the API key — it won't be shown again."
+        : "\n\nAPI keys are redacted by default in MCP output. Set DELEGA_REVEAL_AGENT_KEYS=1 to reveal them.";
       return {
-        content: [{ type: "text", text: `Agent registered:\n\n${formatAgent(agent)}\n\n⚠️ Save the API key — it won't be shown again.` }],
+        content: [{ type: "text", text: `Agent registered:\n\n${formatAgent(agent)}${warning}` }],
       };
     } catch (e: any) {
       return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
