@@ -2,7 +2,7 @@
   "name": "@delega-dev/mcp",
   "version": "1.0.2",
   "mcpName": "io.github.delega-dev/delega",
-  "description": "MCP server for Delega — task infrastructure for AI agents",
+  "description": "MCP server for Delega \u2014 task infrastructure for AI agents",
   "type": "module",
   "bin": {
     "delega-mcp": "dist/index.js"
@@ -51,5 +51,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/delega-dev/delega-mcp/issues"
   }
 }
