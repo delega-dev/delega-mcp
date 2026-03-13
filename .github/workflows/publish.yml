@@ -7,12 +7,10 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    environment: npm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,11 +39,12 @@ jobs:
             exit 1
           fi
 
-      - name: Publish to npm (OIDC trusted publishing)
-        run: npm publish --provenance --access public
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Generate changelog
-        id: changelog
         run: |
           PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
           if [ -n "$PREV_TAG" ]; then
@@ -57,7 +56,6 @@ jobs:
             echo "" >> /tmp/changelog.md
             git log --pretty=format:"- %s (%h)" --no-merges >> /tmp/changelog.md
           fi
-          cat /tmp/changelog.md
 
       - name: Create GitHub Release
         env:
@@ -70,20 +68,17 @@ jobs:
   mcp-registry:
     needs: publish
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Publish to MCP Registry
-        env:
-          MCP_REGISTRY_TOKEN: ${{ secrets.MCP_REGISTRY_TOKEN }}
         run: |
-          if [ -z "$MCP_REGISTRY_TOKEN" ]; then
-            echo "⚠️ MCP_REGISTRY_TOKEN not set — skipping registry publish"
-            exit 0
-          fi
-          # Submit package to MCP Registry via smithery CLI
-          npx -y @anthropic/mcp-registry-cli publish \
-            --name "@delega-dev/mcp" \
-            --version "${GITHUB_REF_NAME#v}" \
-            --repository "https://github.com/delega-dev/delega-mcp" \
-            --token "$MCP_REGISTRY_TOKEN" || echo "⚠️ MCP Registry publish failed (non-fatal)"
+          npx -y @anthropic-ai/mcp-publisher login github-oidc || echo "⚠️ MCP Registry OIDC login failed"
+          npx -y @anthropic-ai/mcp-publisher publish || echo "⚠️ MCP Registry publish failed (non-fatal)"
