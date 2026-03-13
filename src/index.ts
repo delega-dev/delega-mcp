@@ -17,7 +17,8 @@ function formatTask(t: any): string {
   if (t.description) lines.push(`  Description: ${t.description}`);
   if (t.project?.name ?? t.project_name)
     lines.push(`  Project: ${t.project?.name ?? t.project_name}`);
-  if (t.labels?.length) lines.push(`  Labels: ${t.labels.join(", ")}`);
+  const labels = Array.isArray(t.labels) ? t.labels : (typeof t.labels === "string" ? (() => { try { const p = JSON.parse(t.labels); return Array.isArray(p) ? p : []; } catch { return []; } })() : []);
+  if (labels.length) lines.push(`  Labels: ${labels.join(", ")}`);
   if (t.priority) lines.push(`  Priority: ${t.priority}`);
   if (t.due_date) lines.push(`  Due: ${t.due_date}`);
   lines.push(`  Completed: ${t.completed ? "yes" : "no"}`);
