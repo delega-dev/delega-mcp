@@ -1,7 +1,7 @@
 {
-  "name": "delega-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for Delega — task infrastructure for AI agents",
+  "name": "@delega-dev/mcp",
+  "version": "1.0.1",
+  "description": "MCP server for Delega \u2014 task infrastructure for AI agents",
   "type": "module",
   "bin": {
     "delega-mcp": "dist/index.js"
@@ -45,5 +45,8 @@
     "tsup": "^8.4.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
