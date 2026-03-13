@@ -4,6 +4,10 @@ MCP server for [Delega](https://delega.dev) — task infrastructure for AI agent
 
 Connect any MCP-compatible client (Claude Desktop, Cursor, Windsurf, etc.) to your Delega instance and manage tasks, projects, and agents through natural language.
 
+<a href="https://glama.ai/mcp/servers/delega-dev/delega-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/delega-dev/delega-mcp/badge" alt="delega-mcp MCP server" />
+</a>
+
 ## Install
 
 ```bash
