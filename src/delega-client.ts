@@ -3,10 +3,13 @@ const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
 export class DelegaClient {
   private baseUrl: string;
   private agentKey?: string;
+  private pathPrefix: string;
 
   constructor(baseUrl?: string, agentKey?: string) {
     this.baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.agentKey = agentKey;
+    // Hosted API (api.delega.dev) uses /v1/ prefix, self-hosted uses /api/
+    this.pathPrefix = this.baseUrl.includes("api.delega.dev") ? "/v1" : "/api";
   }
 
   private async request<T>(
@@ -65,11 +68,11 @@ export class DelegaClient {
     if (params.due !== undefined) query.due = params.due;
     if (params.completed !== undefined) query.completed = String(params.completed);
 
-    return this.request<unknown[]>("GET", "/api/tasks", undefined, query);
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks`, undefined, query);
   }
 
   async getTask(taskId: number) {
-    return this.request<unknown>("GET", `/api/tasks/${taskId}`);
+    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
   async createTask(data: {
@@ -80,7 +83,7 @@ export class DelegaClient {
     priority?: number;
     due_date?: string;
   }) {
-    return this.request<unknown>("POST", "/api/tasks", data);
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks`, data);
   }
 
   async updateTask(
@@ -94,15 +97,15 @@ export class DelegaClient {
       project_id?: number;
     },
   ) {
-    return this.request<unknown>("PUT", `/api/tasks/${taskId}`, data);
+    return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${taskId}`, data);
   }
 
   async completeTask(taskId: number) {
-    return this.request<unknown>("POST", `/api/tasks/${taskId}/complete`);
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${taskId}/complete`);
   }
 
   async deleteTask(taskId: number) {
-    return this.request<unknown>("DELETE", `/api/tasks/${taskId}`);
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
   // ── Comments ──
@@ -113,7 +116,7 @@ export class DelegaClient {
   ) {
     return this.request<unknown>(
       "POST",
-      `/api/tasks/${taskId}/comments`,
+      `${this.pathPrefix}/tasks/${taskId}/comments`,
       data,
     );
   }
@@ -121,22 +124,22 @@ export class DelegaClient {
   // ── Projects ──
 
   async listProjects() {
-    return this.request<unknown[]>("GET", "/api/projects");
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/projects`);
   }
 
   // ── Stats ──
 
   async getStats() {
-    return this.request<unknown>("GET", "/api/stats");
+    return this.request<unknown>("GET", `${this.pathPrefix}/stats`);
   }
 
   // ── Agents ──
 
   async listAgents() {
-    return this.request<unknown[]>("GET", "/api/agents");
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/agents`);
   }
 
   async registerAgent(data: { name: string; display_name?: string; description?: string; permissions?: string[] }) {
-    return this.request<unknown>("POST", "/api/agents", data);
+    return this.request<unknown>("POST", `${this.pathPrefix}/agents`, data);
   }
 }
