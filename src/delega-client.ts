@@ -1,4 +1,13 @@
 const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
+const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+function normalizeBaseUrl(rawUrl: string): string {
+  const parsed = new URL(rawUrl);
+  if (parsed.protocol !== "https:" && !LOCAL_API_HOSTS.has(parsed.hostname)) {
+    throw new Error("Delega API URL must use HTTPS unless it points to localhost");
+  }
+  return rawUrl.replace(/\/+$/, "");
+}
 
 export class DelegaClient {
   private baseUrl: string;
@@ -6,10 +15,10 @@ export class DelegaClient {
   private pathPrefix: string;
 
   constructor(baseUrl?: string, agentKey?: string) {
-    this.baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+    this.baseUrl = normalizeBaseUrl(baseUrl || DEFAULT_BASE_URL);
     this.agentKey = agentKey;
     // Hosted API (api.delega.dev) uses /v1/ prefix, self-hosted uses /api/
-    this.pathPrefix = this.baseUrl.includes("api.delega.dev") ? "/v1" : "/api";
+    this.pathPrefix = new URL(this.baseUrl).hostname === "api.delega.dev" ? "/v1" : "/api";
   }
 
   private async request<T>(

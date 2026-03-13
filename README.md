@@ -34,8 +34,15 @@ Add to your MCP client config (e.g. Claude Desktop `claude_desktop_config.json`)
 |----------|---------|-------------|
 | `DELEGA_API_URL` | `http://127.0.0.1:18890` | Delega API endpoint |
 | `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests |
+| `DELEGA_REVEAL_AGENT_KEYS` | `0` | Set to `1` only if you want MCP tool output to print full agent API keys |
 
 For the hosted tier, use `https://api.delega.dev` as the URL.
+
+## Security Notes
+
+- Non-local `DELEGA_API_URL` values must use `https://`.
+- Agent keys are passed through environment variables rather than command-line arguments, which avoids process-list leakage.
+- MCP tool output redacts full agent API keys by default. Set `DELEGA_REVEAL_AGENT_KEYS=1` only when you explicitly want them printed back to the client.
 
 ## Tools
 
