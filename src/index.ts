@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { DelegaClient } from "./delega-client.js";
+import { DelegaApiError, DelegaClient } from "./delega-client.js";
 
 // DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership)
 const client = new DelegaClient(
@@ -56,6 +56,48 @@ function formatAgent(a: any): string {
   return lines.join("\n");
 }
 
+function sanitizeToolError(error: unknown): string {
+  if (error instanceof DelegaApiError) {
+    if (error.responseBody) {
+      console.error("Delega API error response:", {
+        status: error.status,
+        statusText: error.statusText,
+        body: error.responseBody,
+      });
+    }
+
+    if (error.status === 400 || error.status === 422) {
+      return "Delega API rejected the request. Check the tool inputs and try again.";
+    }
+    if (error.status === 401) {
+      return "Delega API authentication failed. Check DELEGA_AGENT_KEY.";
+    }
+    if (error.status === 403) {
+      return "Delega API denied this action.";
+    }
+    if (error.status === 404) {
+      return "The requested Delega resource was not found.";
+    }
+    if (error.status >= 500) {
+      return "Delega API returned a server error.";
+    }
+    return `Delega API request failed (${error.status} ${error.statusText}).`;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Unexpected error";
+}
+
+function toolErrorResult(error: unknown) {
+  return {
+    content: [{ type: "text" as const, text: `Error: ${sanitizeToolError(error)}` }],
+    isError: true,
+  };
+}
+
 // ── Server ──
 
 const server = new McpServer({
@@ -85,8 +127,8 @@ server.tool(
       }
       const text = tasks.map(formatTask).join("\n\n");
       return { content: [{ type: "text", text }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -103,8 +145,8 @@ server.tool(
     try {
       const task = await client.getTask(task_id);
       return { content: [{ type: "text", text: formatTask(task) }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -137,8 +179,8 @@ server.tool(
       return {
         content: [{ type: "text", text: `Task created:\n\n${formatTask(task)}` }],
       };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -163,8 +205,8 @@ server.tool(
       return {
         content: [{ type: "text", text: `Task updated:\n\n${formatTask(task)}` }],
       };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -185,8 +227,8 @@ server.tool(
         text += `\nNext occurrence: ${task.next_occurrence}`;
       }
       return { content: [{ type: "text", text }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -205,8 +247,8 @@ server.tool(
       return {
         content: [{ type: "text", text: `Task #${task_id} deleted.` }],
       };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -232,8 +274,8 @@ server.tool(
           },
         ],
       };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -252,8 +294,8 @@ server.tool(
       }
       const text = projects.map(formatProject).join("\n");
       return { content: [{ type: "text", text }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -279,8 +321,8 @@ server.tool(
         }
       }
       return { content: [{ type: "text", text: lines.join("\n") }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -299,8 +341,8 @@ server.tool(
       }
       const text = agents.map(formatAgent).join("\n\n");
       return { content: [{ type: "text", text }] };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );
@@ -325,8 +367,8 @@ server.tool(
       return {
         content: [{ type: "text", text: `Agent registered:\n\n${formatAgent(agent)}${warning}` }],
       };
-    } catch (e: any) {
-      return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
     }
   },
 );

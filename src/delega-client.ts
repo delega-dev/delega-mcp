@@ -1,6 +1,20 @@
 const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
 
+export class DelegaApiError extends Error {
+  status: number;
+  statusText: string;
+  responseBody: string;
+
+  constructor(status: number, statusText: string, responseBody: string) {
+    super(`Delega API request failed (${status} ${statusText})`);
+    this.name = "DelegaApiError";
+    this.status = status;
+    this.statusText = statusText;
+    this.responseBody = responseBody;
+  }
+}
+
 function normalizeBaseUrl(rawUrl: string): string {
   const parsed = new URL(rawUrl);
   if (parsed.protocol !== "https:" && !LOCAL_API_HOSTS.has(parsed.hostname)) {
@@ -51,9 +65,7 @@ export class DelegaClient {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      throw new Error(
-        `Delega API error: ${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`,
-      );
+      throw new DelegaApiError(res.status, res.statusText, text);
     }
 
     if (res.status === 204) {
