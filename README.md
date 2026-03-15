@@ -7,7 +7,7 @@ Connect any MCP-compatible client (Claude Desktop, Cursor, Windsurf, etc.) to yo
 ## Install
 
 ```bash
-npm install -g delega-mcp
+npm install -g @delega-dev/mcp
 ```
 
 ## Configure
@@ -18,7 +18,8 @@ Add to your MCP client config (e.g. Claude Desktop `claude_desktop_config.json`)
 {
   "mcpServers": {
     "delega": {
-      "command": "@delega-dev/mcp",
+      "command": "npx",
+      "args": ["-y", "@delega-dev/mcp"],
       "env": {
         "DELEGA_API_URL": "http://127.0.0.1:18890",
         "DELEGA_AGENT_KEY": "dlg_your_agent_key_here"
