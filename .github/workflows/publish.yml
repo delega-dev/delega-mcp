@@ -74,11 +74,12 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: 22
+      - name: Install mcp-publisher
+        run: |
+          curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          chmod +x mcp-publisher
 
       - name: Publish to MCP Registry
         run: |
-          npx -y @anthropic-ai/mcp-publisher login github-oidc || echo "⚠️ MCP Registry OIDC login failed"
-          npx -y @anthropic-ai/mcp-publisher publish || echo "⚠️ MCP Registry publish failed (non-fatal)"
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
