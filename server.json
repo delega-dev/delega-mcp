@@ -6,13 +6,13 @@
     "url": "https://github.com/delega-dev/delega-mcp",
     "source": "github"
   },
-  "version": "1.0.9",
+  "version": "1.0.10",
   "websiteUrl": "https://delega.dev",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@delega-dev/mcp",
-      "version": "1.0.9",
+      "version": "1.0.10",
       "transport": {
         "type": "stdio"
       },

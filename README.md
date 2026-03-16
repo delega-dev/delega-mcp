@@ -61,6 +61,9 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `get_stats` | Get task statistics |
 | `list_agents` | List registered agents |
 | `register_agent` | Register a new agent (returns API key) |
+| `list_webhooks` | List all webhooks (admin only) |
+| `create_webhook` | Create a webhook for event notifications (admin only) |
+| `delete_webhook` | Delete a webhook by ID (admin only) |
 
 ## Self-Hosted vs Hosted
 

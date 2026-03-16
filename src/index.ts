@@ -373,6 +373,92 @@ server.tool(
   },
 );
 
+// ── list_webhooks ──
+
+server.tool(
+  "list_webhooks",
+  "List all webhooks configured for your account (admin only)",
+  {},
+  async () => {
+    try {
+      const webhooks = await client.listWebhooks();
+      if (!webhooks.length) {
+        return { content: [{ type: "text", text: "No webhooks configured." }] };
+      }
+      const text = webhooks
+        .map((w: any) =>
+          `[#${w.id}] ${w.url}\n  Events: ${Array.isArray(w.events) ? w.events.join(", ") : w.events}\n  Active: ${w.active !== false ? "yes" : "no"}`,
+        )
+        .join("\n\n");
+      return { content: [{ type: "text", text }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── create_webhook ──
+
+server.tool(
+  "create_webhook",
+  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.commented",
+  {
+    url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
+    events: z
+      .array(
+        z.enum([
+          "task.created",
+          "task.updated",
+          "task.completed",
+          "task.deleted",
+          "task.assigned",
+          "task.commented",
+        ]),
+      )
+      .min(1)
+      .describe("Events to subscribe to"),
+  },
+  async (params) => {
+    try {
+      const webhook = await client.createWebhook(params);
+      const w = webhook as any;
+      const lines = [
+        `Webhook created:`,
+        `  ID: ${w.id}`,
+        `  URL: ${w.url}`,
+        `  Events: ${Array.isArray(w.events) ? w.events.join(", ") : w.events}`,
+      ];
+      if (w.secret) {
+        lines.push(`  Secret: ${w.secret}`);
+        lines.push(`\n⚠️ Save the secret — it won't be shown again. Use it to verify webhook signatures.`);
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── delete_webhook ──
+
+server.tool(
+  "delete_webhook",
+  "Delete a webhook by ID (admin only)",
+  {
+    webhook_id: z.number().describe("Webhook ID to delete"),
+  },
+  async (params) => {
+    try {
+      await client.deleteWebhook(params.webhook_id);
+      return {
+        content: [{ type: "text", text: `Webhook #${params.webhook_id} deleted.` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
 // ── Start ──
 
 async function main() {

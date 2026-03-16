@@ -163,4 +163,18 @@ export class DelegaClient {
   async registerAgent(data: { name: string; display_name?: string; description?: string; permissions?: string[] }) {
     return this.request<unknown>("POST", `${this.pathPrefix}/agents`, data);
   }
+
+  // ── Webhooks ──
+
+  async listWebhooks() {
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/webhooks`);
+  }
+
+  async createWebhook(data: { url: string; events: string[]; secret?: string }) {
+    return this.request<unknown>("POST", `${this.pathPrefix}/webhooks`, data);
+  }
+
+  async deleteWebhook(webhookId: string | number) {
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/webhooks/${webhookId}`);
+  }
 }
