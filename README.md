@@ -2,7 +2,7 @@
 
 MCP server for [Delega](https://delega.dev) — task infrastructure for AI agents.
 
-Connect any MCP-compatible client (Claude Desktop, Cursor, Windsurf, etc.) to your Delega instance and manage tasks, projects, and agents through natural language.
+Connect any MCP-compatible client (Claude Code, Cursor, Codex, etc.) to your Delega instance and manage tasks, projects, and agents through natural language.
 
 ## Install
 
@@ -12,7 +12,7 @@ npm install -g @delega-dev/mcp
 
 ## Configure
 
-Add to your MCP client config (e.g. Claude Desktop `claude_desktop_config.json`):
+Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 ```json
 {
