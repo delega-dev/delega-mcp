@@ -40,6 +40,44 @@ function maskApiKey(key: string): string {
   return `${key.slice(0, 8)}...${key.slice(-4)}`;
 }
 
+function normalizePermissions(value: unknown, prefix = ""): string[] {
+  if (value == null || value === false) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizePermissions(item, prefix));
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        return normalizePermissions(JSON.parse(trimmed), prefix);
+      } catch {
+        // Fall through to treating it as a plain permission string.
+      }
+    }
+    return trimmed
+      .split(/[,\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => (prefix ? `${prefix}.${item}` : item));
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => {
+      const childPrefix = prefix ? `${prefix}.${key}` : key;
+      if (child === true) return [childPrefix];
+      if (child == null || child === false) return [];
+
+      const nested = normalizePermissions(child, childPrefix);
+      return nested.length ? nested : [childPrefix];
+    });
+  }
+
+  return prefix ? [prefix] : [];
+}
+
 function formatAgent(a: any): string {
   const lines: string[] = [];
   lines.push(`[#${a.id}] ${a.name}${a.display_name ? ` (${a.display_name})` : ""}`);
@@ -51,7 +89,8 @@ function formatAgent(a: any): string {
       lines.push(`  API Key Preview: ${maskApiKey(a.api_key)}`);
     }
   }
-  if (a.permissions?.length) lines.push(`  Permissions: ${a.permissions.join(", ")}`);
+  const permissions = normalizePermissions(a.permissions);
+  if (permissions.length) lines.push(`  Permissions: ${permissions.join(", ")}`);
   if (a.active !== undefined) lines.push(`  Active: ${a.active ? "yes" : "no"}`);
   return lines.join("\n");
 }
@@ -445,7 +484,7 @@ server.tool(
   "delete_webhook",
   "Delete a webhook by ID (admin only)",
   {
-    webhook_id: z.number().describe("Webhook ID to delete"),
+    webhook_id: z.union([z.string(), z.number()]).describe("Webhook ID to delete"),
   },
   async (params) => {
     try {
