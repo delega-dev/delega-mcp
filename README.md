@@ -80,3 +80,8 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 ## License
 
 MIT
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/delega-dev-delega-mcp).
+
