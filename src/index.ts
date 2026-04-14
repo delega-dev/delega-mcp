@@ -2,7 +2,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { DelegaApiError, DelegaClient } from "./delega-client.js";
-import { formatAgent as formatAgentBase, formatProject, formatTask } from "./formatters.js";
+import {
+  formatAgent as formatAgentBase,
+  formatChain,
+  formatDedupResult,
+  formatProject,
+  formatTask,
+  formatTaskDetail,
+  formatUsage,
+} from "./formatters.js";
 
 // DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership)
 const client = new DelegaClient(
@@ -62,7 +70,7 @@ function toolErrorResult(error: unknown) {
 
 const server = new McpServer({
   name: "delega-mcp",
-  version: "1.0.0",
+  version: "1.2.0",
 });
 
 // ── list_tasks ──
@@ -104,7 +112,7 @@ server.tool(
   async ({ task_id }) => {
     try {
       const task = await client.getTask(task_id);
-      return { content: [{ type: "text", text: formatTask(task) }] };
+      return { content: [{ type: "text", text: formatTaskDetail(task) }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }
@@ -137,7 +145,7 @@ server.tool(
     try {
       const task = await client.createTask(params);
       return {
-        content: [{ type: "text", text: `Task created:\n\n${formatTask(task)}` }],
+        content: [{ type: "text", text: `Task created:\n\n${formatTaskDetail(task)}` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);
@@ -167,7 +175,7 @@ server.tool(
     try {
       const task = await client.updateTask(task_id, updates);
       return {
-        content: [{ type: "text", text: `Task updated:\n\n${formatTask(task)}` }],
+        content: [{ type: "text", text: `Task updated:\n\n${formatTaskDetail(task)}` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);
@@ -191,8 +199,134 @@ server.tool(
       const task = await client.assignTask(task_id, agent_id);
       const verb = agent_id === null ? "unassigned" : "assigned";
       return {
-        content: [{ type: "text", text: `Task ${verb}:\n\n${formatTask(task)}` }],
+        content: [{ type: "text", text: `Task ${verb}:\n\n${formatTaskDetail(task)}` }],
       };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── delegate_task ──
+
+server.tool(
+  "delegate_task",
+  "Delegate a task: create a child task linked to a parent. The parent's status flips to 'delegated'. Use this (not assign_task) for multi-agent handoffs so the delegation chain is recorded.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("Parent task ID to delegate from"),
+    content: z.string().describe("Child task title / content"),
+    description: z.string().optional().describe("Detailed description"),
+    project_id: z.number().int().optional().describe("Project ID (admin only for non-self delegations)"),
+    labels: z.array(z.string()).optional().describe("Labels to apply"),
+    priority: z
+      .number()
+      .int()
+      .min(1)
+      .max(4)
+      .optional()
+      .describe("Priority: 1=normal, 2=medium, 3=high, 4=urgent"),
+    due_date: z.string().optional().describe("Due date in YYYY-MM-DD format"),
+    assigned_to_agent_id: z
+      .union([z.string(), z.number()])
+      .optional()
+      .describe("Agent ID to assign the child task to"),
+  },
+  async ({ task_id, ...data }) => {
+    try {
+      const child = await client.delegateTask(task_id, data);
+      return {
+        content: [{ type: "text", text: `Task delegated:\n\n${formatTaskDetail(child)}` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── get_task_chain ──
+
+server.tool(
+  "get_task_chain",
+  "Get the full delegation chain for a task (root + all descendants, sorted by depth). Use this to inspect parent/child accountability.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("Any task ID in the chain"),
+  },
+  async ({ task_id }) => {
+    try {
+      const chain = await client.getTaskChain(task_id);
+      return { content: [{ type: "text", text: formatChain(chain) }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── update_task_context ──
+
+server.tool(
+  "update_task_context",
+  "Merge keys into a task's persistent context blob. Existing keys are preserved; supplied keys are added or overwritten. Use this to pass shared state between delegated agents instead of re-describing context in task descriptions.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The task ID whose context to update"),
+    context: z
+      .record(z.string(), z.unknown())
+      .describe("Object whose keys are merged (not replaced) into existing context"),
+  },
+  async ({ task_id, context }) => {
+    try {
+      const { context: merged, task } = await client.updateTaskContext(task_id, context);
+      const lines = [`Context updated for task #${task_id}.`, ""];
+      if (task) {
+        lines.push(formatTaskDetail(task));
+      } else {
+        lines.push("Merged context:");
+        const pretty = JSON.stringify(merged, null, 2)
+          .split("\n")
+          .map((l) => `  ${l}`)
+          .join("\n");
+        lines.push(pretty);
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── find_duplicate_tasks ──
+
+server.tool(
+  "find_duplicate_tasks",
+  "Check whether a proposed task is similar to existing open tasks (Jaccard similarity). Call this before create_task to avoid redundant work.",
+  {
+    content: z.string().describe("Proposed task content to check"),
+    threshold: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .describe("Similarity threshold 0-1 (default 0.6)"),
+  },
+  async ({ content, threshold }) => {
+    try {
+      const result: any = await client.findDuplicateTasks(content, threshold);
+      return { content: [{ type: "text", text: formatDedupResult(result) }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── get_usage ──
+
+server.tool(
+  "get_usage",
+  "Get quota and rate-limit information for the current plan. Hosted API only (api.delega.dev) — self-hosted deployments will receive a clear error.",
+  {},
+  async () => {
+    try {
+      const usage: any = await client.getUsage();
+      return { content: [{ type: "text", text: formatUsage(usage) }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }

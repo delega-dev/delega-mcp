@@ -55,6 +55,11 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `create_task` | Create a new task |
 | `update_task` | Update task fields (incl. `assigned_to_agent_id`) |
 | `assign_task` | Assign a task to an agent (or pass `null` to unassign) |
+| `delegate_task` | Delegate a task: create a child task linked to a parent (parent status flips to `delegated`). Use this for multi-agent handoffs — `assign_task` does not create a delegation chain. |
+| `get_task_chain` | Return the full delegation chain for a task (root + descendants, sorted by depth) |
+| `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace) |
+| `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (Jaccard similarity). Call before `create_task` to avoid redundant work. |
+| `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); self-hosted deployments receive a clear error. |
 | `complete_task` | Mark a task as completed |
 | `delete_task` | Delete a task permanently |
 | `add_comment` | Add a comment to a task |
@@ -84,6 +89,35 @@ Task-returning tools (`list_tasks`, `get_task`, `create_task`, `update_task`, `a
 ```
 
 `Assigned to` / `Created by` / `Completed by` lines are emitted only when the underlying field is populated. Self-hosted Delega returns a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` tier returns the raw agent ID so it renders as `#<id>`.
+
+Tasks that are part of a delegation chain also surface the chain metadata:
+
+```
+[#def] Draft intro
+  Status: delegated
+  Assigned to: Drafter (#3)
+  Created by: Coordinator (#7)
+  Delegation: depth 1, parent #abc, root #abc
+  Delegated by: Coordinator (#7)
+  Completed: no
+  Context keys: step, findings (2)
+```
+
+Single-task tools (`get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, `update_task_context`) use a detail render that pretty-prints the full `context` blob (truncated at 2000 chars). `list_tasks` uses the concise list render which shows `Context keys: …` instead.
+
+### Delegation chains
+
+`get_task_chain` returns the full parent/child chain for any task in the chain. Output is indented by `delegation_depth`:
+
+```
+Delegation chain (root #abc, depth 2, 2/4 complete):
+  [#abc] Write report (depth 0, delegated)
+    [#def] Draft intro (depth 1, completed)
+    [#jkl] Draft conclusion (depth 1, pending)
+      [#ghi] Research sources (depth 2, completed)
+```
+
+Nodes are sorted by depth then creation order (matching the API's response ordering).
 
 ## Self-Hosted vs Hosted
 
