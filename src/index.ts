@@ -12,10 +12,13 @@ import {
   formatUsage,
 } from "./formatters.js";
 
-// DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership)
+// DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership).
+// DELEGA_API_KEY is accepted as a fallback so the MCP, CLI, and SDK can share
+// the same env var — agents configuring multiple Delega surfaces in one shell
+// hit less friction.
 const client = new DelegaClient(
   process.env.DELEGA_API_URL,
-  process.env.DELEGA_AGENT_KEY,
+  process.env.DELEGA_AGENT_KEY || process.env.DELEGA_API_KEY,
 );
 
 function formatAgent(a: any): string {
@@ -70,7 +73,7 @@ function toolErrorResult(error: unknown) {
 
 const server = new McpServer({
   name: "delega-mcp",
-  version: "1.2.0",
+  version: "1.2.1",
 });
 
 // ── list_tasks ──
