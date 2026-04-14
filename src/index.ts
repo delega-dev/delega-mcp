@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { DelegaApiError, DelegaClient } from "./delega-client.js";
+import { formatAgent as formatAgentBase, formatProject, formatTask } from "./formatters.js";
 
 // DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership)
 const client = new DelegaClient(
@@ -9,90 +10,10 @@ const client = new DelegaClient(
   process.env.DELEGA_AGENT_KEY,
 );
 
-// ── Formatting helpers ──
-
-function formatTask(t: any): string {
-  const lines: string[] = [];
-  lines.push(`[#${t.id}] ${t.content}`);
-  if (t.description) lines.push(`  Description: ${t.description}`);
-  if (t.project?.name ?? t.project_name)
-    lines.push(`  Project: ${t.project?.name ?? t.project_name}`);
-  const labels = Array.isArray(t.labels) ? t.labels : (typeof t.labels === "string" ? (() => { try { const p = JSON.parse(t.labels); return Array.isArray(p) ? p : []; } catch { return []; } })() : []);
-  if (labels.length) lines.push(`  Labels: ${labels.join(", ")}`);
-  if (t.priority) lines.push(`  Priority: ${t.priority}`);
-  if (t.due_date) lines.push(`  Due: ${t.due_date}`);
-  lines.push(`  Completed: ${t.completed ? "yes" : "no"}`);
-  if (t.subtasks?.length) {
-    lines.push(`  Subtasks:`);
-    for (const s of t.subtasks) {
-      lines.push(`    [#${s.id}] ${s.content} (${s.completed ? "done" : "pending"})`);
-    }
-  }
-  return lines.join("\n");
-}
-
-function formatProject(p: any): string {
-  return `[#${p.id}] ${p.name}`;
-}
-
-function maskApiKey(key: string): string {
-  if (key.length <= 12) return key;
-  return `${key.slice(0, 8)}...${key.slice(-4)}`;
-}
-
-function normalizePermissions(value: unknown, prefix = ""): string[] {
-  if (value == null || value === false) return [];
-
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => normalizePermissions(item, prefix));
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed) return [];
-    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-      try {
-        return normalizePermissions(JSON.parse(trimmed), prefix);
-      } catch {
-        // Fall through to treating it as a plain permission string.
-      }
-    }
-    return trimmed
-      .split(/[,\s]+/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-      .map((item) => (prefix ? `${prefix}.${item}` : item));
-  }
-
-  if (typeof value === "object") {
-    return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) => {
-      const childPrefix = prefix ? `${prefix}.${key}` : key;
-      if (child === true) return [childPrefix];
-      if (child == null || child === false) return [];
-
-      const nested = normalizePermissions(child, childPrefix);
-      return nested.length ? nested : [childPrefix];
-    });
-  }
-
-  return prefix ? [prefix] : [];
-}
-
 function formatAgent(a: any): string {
-  const lines: string[] = [];
-  lines.push(`[#${a.id}] ${a.name}${a.display_name ? ` (${a.display_name})` : ""}`);
-  if (a.description) lines.push(`  Description: ${a.description}`);
-  if (a.api_key) {
-    if (process.env.DELEGA_REVEAL_AGENT_KEYS === "1") {
-      lines.push(`  API Key: ${a.api_key}`);
-    } else {
-      lines.push(`  API Key Preview: ${maskApiKey(a.api_key)}`);
-    }
-  }
-  const permissions = normalizePermissions(a.permissions);
-  if (permissions.length) lines.push(`  Permissions: ${permissions.join(", ")}`);
-  if (a.active !== undefined) lines.push(`  Active: ${a.active ? "yes" : "no"}`);
-  return lines.join("\n");
+  return formatAgentBase(a, {
+    revealApiKey: process.env.DELEGA_REVEAL_AGENT_KEYS === "1",
+  });
 }
 
 function sanitizeToolError(error: unknown): string {
@@ -237,12 +158,40 @@ server.tool(
     priority: z.number().int().optional().describe("New priority (1-4)"),
     due_date: z.string().optional().describe("New due date (YYYY-MM-DD)"),
     project_id: z.number().int().optional().describe("Move to project ID"),
+    assigned_to_agent_id: z
+      .union([z.string(), z.number(), z.null()])
+      .optional()
+      .describe("Assign to agent ID, or null to unassign"),
   },
   async ({ task_id, ...updates }) => {
     try {
       const task = await client.updateTask(task_id, updates);
       return {
         content: [{ type: "text", text: `Task updated:\n\n${formatTask(task)}` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── assign_task ──
+
+server.tool(
+  "assign_task",
+  "Assign a task to an agent (or unassign by passing null)",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The task ID to assign"),
+    agent_id: z
+      .union([z.string(), z.number(), z.null()])
+      .describe("Agent ID to assign the task to, or null to unassign"),
+  },
+  async ({ task_id, agent_id }) => {
+    try {
+      const task = await client.assignTask(task_id, agent_id);
+      const verb = agent_id === null ? "unassigned" : "assigned";
+      return {
+        content: [{ type: "text", text: `Task ${verb}:\n\n${formatTask(task)}` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);
@@ -405,6 +354,26 @@ server.tool(
         : "\n\nAPI keys are redacted by default in MCP output. Set DELEGA_REVEAL_AGENT_KEYS=1 to reveal them.";
       return {
         content: [{ type: "text", text: `Agent registered:\n\n${formatAgent(agent)}${warning}` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── delete_agent ──
+
+server.tool(
+  "delete_agent",
+  "Delete an agent. The API may refuse if the agent has active tasks or is the last active agent.",
+  {
+    agent_id: z.union([z.string(), z.number()]).describe("Agent ID to delete"),
+  },
+  async ({ agent_id }) => {
+    try {
+      await client.deleteAgent(agent_id);
+      return {
+        content: [{ type: "text", text: `Agent #${agent_id} deleted.` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);
