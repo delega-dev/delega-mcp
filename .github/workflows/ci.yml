@@ -7,24 +7,18 @@ on:
     branches: [main]
 
 jobs:
-  build:
+  test:
+    # Install + typecheck + build come from the reusable workflow so
+    # ci.yml and publish.yml can't drift apart.
+    uses: ./.github/workflows/test.yml
+
+  versions:
+    # Validate package.json + server.json stay in lockstep. This is
+    # specific to the PR gate (the release gate checks a different
+    # invariant: version matches the git tag).
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: 24
-          cache: npm
-
-      - run: npm ci
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Build
-        run: npm run build
-
       - name: Validate server.json versions match package.json
         run: |
           PKG_VER=$(node -p "require('./package.json').version")
