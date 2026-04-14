@@ -53,7 +53,8 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `list_tasks` | List tasks, filter by project, label, due date, completion |
 | `get_task` | Get full task details including subtasks |
 | `create_task` | Create a new task |
-| `update_task` | Update task fields |
+| `update_task` | Update task fields (incl. `assigned_to_agent_id`) |
+| `assign_task` | Assign a task to an agent (or pass `null` to unassign) |
 | `complete_task` | Mark a task as completed |
 | `delete_task` | Delete a task permanently |
 | `add_comment` | Add a comment to a task |
@@ -61,9 +62,28 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `get_stats` | Get task statistics |
 | `list_agents` | List registered agents |
 | `register_agent` | Register a new agent (returns API key) |
+| `delete_agent` | Delete an agent (refused if agent has active tasks) |
 | `list_webhooks` | List all webhooks (admin only) |
 | `create_webhook` | Create a webhook for event notifications (admin only) |
 | `delete_webhook` | Delete a webhook by ID (admin only) |
+
+### Task output format
+
+Task-returning tools (`list_tasks`, `get_task`, `create_task`, `update_task`, `assign_task`) render each task with assignment metadata when available:
+
+```
+[#42] Ship the release
+  Description: Cut RC, tag, push to npm
+  Project: Delega
+  Labels: release
+  Priority: 3
+  Due: 2026-04-20
+  Assigned to: Coordinator (#7)
+  Created by: planner (#3)
+  Completed: no
+```
+
+`Assigned to` / `Created by` / `Completed by` lines are emitted only when the underlying field is populated. Self-hosted Delega returns a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` tier returns the raw agent ID so it renders as `#<id>`.
 
 ## Self-Hosted vs Hosted
 

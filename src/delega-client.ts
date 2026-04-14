@@ -116,9 +116,16 @@ export class DelegaClient {
       priority?: number;
       due_date?: string;
       project_id?: number;
+      assigned_to_agent_id?: string | number | null;
     },
   ) {
     return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${taskId}`, data);
+  }
+
+  async assignTask(taskId: string | number, agentId: string | number | null) {
+    return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${taskId}`, {
+      assigned_to_agent_id: agentId,
+    });
   }
 
   async completeTask(taskId: string | number) {
@@ -162,6 +169,10 @@ export class DelegaClient {
 
   async registerAgent(data: { name: string; display_name?: string; description?: string; permissions?: string[] }) {
     return this.request<unknown>("POST", `${this.pathPrefix}/agents`, data);
+  }
+
+  async deleteAgent(agentId: string | number) {
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/agents/${agentId}`);
   }
 
   // ── Webhooks ──

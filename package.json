@@ -1,6 +1,6 @@
 {
   "name": "@delega-dev/mcp",
-  "version": "1.0.12",
+  "version": "1.1.0",
   "mcpName": "io.github.delega-dev/delega",
   "description": "MCP server for Delega — task infrastructure for AI agents",
   "type": "module",
@@ -16,8 +16,9 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx src/index.ts",
+    "test": "node --import tsx --test test/*.test.ts",
     "prepublish-check": "bash scripts/prepublish-check.sh",
-    "prepublishOnly": "npm run prepublish-check && npm run build"
+    "prepublishOnly": "npm run prepublish-check && npm test && npm run build"
   },
   "keywords": [
     "mcp",
