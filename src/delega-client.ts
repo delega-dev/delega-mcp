@@ -136,6 +136,79 @@ export class DelegaClient {
     return this.request<unknown>("DELETE", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
+  // ── Delegation / coordination ──
+
+  async delegateTask(
+    parentId: string | number,
+    data: {
+      content: string;
+      description?: string;
+      project_id?: number;
+      labels?: string[];
+      priority?: number;
+      due_date?: string;
+      assigned_to_agent_id?: string | number;
+    },
+  ) {
+    return this.request<unknown>(
+      "POST",
+      `${this.pathPrefix}/tasks/${parentId}/delegate`,
+      data,
+    );
+  }
+
+  async getTaskChain(taskId: string | number): Promise<{
+    root_id: string | number;
+    chain: any[];
+    depth: number;
+    completed_count: number;
+    total_count: number;
+  }> {
+    const resp: any = await this.request<unknown>(
+      "GET",
+      `${this.pathPrefix}/tasks/${taskId}/chain`,
+    );
+    // Hosted returns { root_id, chain, ... }; self-hosted returns { root: Task, chain, ... }.
+    // Normalize so the formatter only handles one shape.
+    if (resp && typeof resp === "object") {
+      if (resp.root && typeof resp.root === "object" && resp.root_id === undefined) {
+        return { ...resp, root_id: resp.root.id };
+      }
+    }
+    return resp;
+  }
+
+  async updateTaskContext(
+    taskId: string | number,
+    context: Record<string, unknown>,
+  ): Promise<{ context: Record<string, unknown>; task?: any }> {
+    const resp: any = await this.request<unknown>(
+      "PATCH",
+      `${this.pathPrefix}/tasks/${taskId}/context`,
+      context,
+    );
+    // Self-hosted returns the full task; hosted returns the bare merged context dict.
+    if (resp && typeof resp === "object" && typeof resp.content === "string" && "id" in resp) {
+      return { task: resp, context: resp.context ?? {} };
+    }
+    return { context: (resp ?? {}) as Record<string, unknown> };
+  }
+
+  async findDuplicateTasks(content: string, threshold?: number) {
+    const body: { content: string; threshold?: number } = { content };
+    if (threshold !== undefined) body.threshold = threshold;
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/dedup`, body);
+  }
+
+  async getUsage() {
+    if (this.pathPrefix !== "/v1") {
+      throw new Error(
+        "get_usage is only available on the hosted Delega API (api.delega.dev). Self-hosted deployments do not expose a usage endpoint.",
+      );
+    }
+    return this.request<unknown>("GET", `${this.pathPrefix}/usage`);
+  }
+
   // ── Comments ──
 
   async addComment(
