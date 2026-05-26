@@ -300,7 +300,7 @@ server.tool(
 
 server.tool(
   "find_duplicate_tasks",
-  "Check whether a proposed task is similar to existing open tasks (Jaccard similarity). Call this before create_task to avoid redundant work.",
+  "Check whether a proposed task is similar to existing open tasks (TF-IDF + cosine similarity). Call this before create_task to avoid redundant work.",
   {
     content: z.string().describe("Proposed task content to check"),
     threshold: z
@@ -546,7 +546,7 @@ server.tool(
 
 server.tool(
   "create_webhook",
-  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.commented",
+  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented",
   {
     url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
     events: z
@@ -557,6 +557,7 @@ server.tool(
           "task.completed",
           "task.deleted",
           "task.assigned",
+          "task.delegated",
           "task.commented",
         ]),
       )

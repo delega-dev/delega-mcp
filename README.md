@@ -58,7 +58,7 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `delegate_task` | Delegate a task: create a child task linked to a parent (parent status flips to `delegated`). Use this for multi-agent handoffs — `assign_task` does not create a delegation chain. |
 | `get_task_chain` | Return the full delegation chain for a task (root + descendants, sorted by depth) |
 | `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace) |
-| `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (Jaccard similarity). Call before `create_task` to avoid redundant work. |
+| `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (TF-IDF + cosine similarity). Call before `create_task` to avoid redundant work. |
 | `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); self-hosted deployments receive a clear error. |
 | `complete_task` | Mark a task as completed |
 | `delete_task` | Delete a task permanently |
