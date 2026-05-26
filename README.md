@@ -1,6 +1,6 @@
 # delega-mcp
 
-MCP server for [Delega](https://delega.dev) — task infrastructure for AI agents.
+MCP server for [Delega](https://delega.dev) — the task handoff layer for AI agents.
 
 Connect any MCP-compatible client (Claude Code, Cursor, Codex, etc.) to your Delega instance and manage tasks, projects, and agents through natural language.
 
