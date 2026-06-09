@@ -1,5 +1,6 @@
 const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
+type ProjectRef = string | number;
 
 export class DelegaApiError extends Error {
   status: number;
@@ -78,7 +79,7 @@ export class DelegaClient {
   // ── Tasks ──
 
   async listTasks(params: {
-    project_id?: number;
+    project_id?: ProjectRef;
     label?: string;
     due?: "today" | "upcoming" | "overdue";
     completed?: boolean;
@@ -99,7 +100,7 @@ export class DelegaClient {
   async createTask(data: {
     content: string;
     description?: string;
-    project_id?: number;
+    project_id?: ProjectRef;
     labels?: string[];
     priority?: number;
     due_date?: string;
@@ -115,7 +116,7 @@ export class DelegaClient {
       labels?: string[];
       priority?: number;
       due_date?: string;
-      project_id?: number;
+      project_id?: ProjectRef;
       assigned_to_agent_id?: string | number | null;
     },
   ) {
@@ -143,7 +144,7 @@ export class DelegaClient {
     data: {
       content: string;
       description?: string;
-      project_id?: number;
+      project_id?: ProjectRef;
       labels?: string[];
       priority?: number;
       due_date?: string;

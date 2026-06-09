@@ -69,6 +69,8 @@ function toolErrorResult(error: unknown) {
   };
 }
 
+const projectRefSchema = z.union([z.string(), z.number()]);
+
 // ── Server ──
 
 const server = new McpServer({
@@ -82,7 +84,7 @@ server.tool(
   "list_tasks",
   "List tasks from Delega, optionally filtered by project, label, due date, or completion status",
   {
-    project_id: z.number().int().optional().describe("Filter by project ID"),
+    project_id: projectRefSchema.optional().describe("Filter by project ID"),
     label: z.string().optional().describe("Filter by label name"),
     due: z
       .enum(["today", "upcoming", "overdue"])
@@ -130,7 +132,7 @@ server.tool(
   {
     content: z.string().describe("Task title / content"),
     description: z.string().optional().describe("Detailed description"),
-    project_id: z.number().int().optional().describe("Project ID to assign to"),
+    project_id: projectRefSchema.optional().describe("Project ID to assign to"),
     labels: z.array(z.string()).optional().describe("Labels to apply"),
     priority: z
       .number()
@@ -168,7 +170,7 @@ server.tool(
     labels: z.array(z.string()).optional().describe("New labels"),
     priority: z.number().int().optional().describe("New priority (1-4)"),
     due_date: z.string().optional().describe("New due date (YYYY-MM-DD)"),
-    project_id: z.number().int().optional().describe("Move to project ID"),
+    project_id: projectRefSchema.optional().describe("Move to project ID"),
     assigned_to_agent_id: z
       .union([z.string(), z.number(), z.null()])
       .optional()
@@ -219,7 +221,7 @@ server.tool(
     task_id: z.union([z.string(), z.number()]).describe("Parent task ID to delegate from"),
     content: z.string().describe("Child task title / content"),
     description: z.string().optional().describe("Detailed description"),
-    project_id: z.number().int().optional().describe("Project ID (admin only for non-self delegations)"),
+    project_id: projectRefSchema.optional().describe("Project ID (admin only for non-self delegations)"),
     labels: z.array(z.string()).optional().describe("Labels to apply"),
     priority: z
       .number()
@@ -481,7 +483,7 @@ server.tool(
     name: z.string().describe("Unique agent name (e.g. 'coordinator', 'researcher')"),
     display_name: z.string().optional().describe("Human-readable name (e.g. 'Research Bot')"),
     description: z.string().optional().describe("What this agent does"),
-    permissions: z.array(z.string()).optional().describe("Permission scopes (e.g. ['tasks:read', 'tasks:write'])"),
+    permissions: z.array(z.string()).optional().describe("Permission scopes, currently only ['tasks.read_all']"),
   },
   async (params) => {
     try {

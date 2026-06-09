@@ -99,6 +99,31 @@ test("DelegaClient.getUsage hits /v1/usage on hosted", async () => {
   }
 });
 
+test("DelegaClient preserves external string project IDs in task requests", async () => {
+  const captured: Array<{ url: string; body?: any }> = [];
+  const mock = mockFetch((url, init) => {
+    captured.push({
+      url,
+      body: init?.body ? JSON.parse(init.body as string) : undefined,
+    });
+    return jsonResponse([]);
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.listTasks({ project_id: "prj_external_123" });
+    await client.createTask({ content: "external project", project_id: "prj_external_123" });
+    await client.updateTask("tsk_123", { project_id: "prj_external_456" });
+    await client.delegateTask("tsk_123", { content: "child", project_id: "prj_external_789" });
+
+    assert.match(captured[0].url, /\/v1\/tasks\?project_id=prj_external_123$/);
+    assert.equal(captured[1].body.project_id, "prj_external_123");
+    assert.equal(captured[2].body.project_id, "prj_external_456");
+    assert.equal(captured[3].body.project_id, "prj_external_789");
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient.updateTaskContext normalizes hosted bare-context vs self-hosted full-task", async () => {
   // Hosted returns the merged context object directly.
   const hostedMock = mockFetch(() => jsonResponse({ step: "done", count: 2 }));
