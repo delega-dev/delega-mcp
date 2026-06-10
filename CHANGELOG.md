@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-06-10
+
+### Added
+- Session lifecycle states (requires delega-api with session states).
+  New tool `set_task_state` (`task_id`, `state`, `detail?`) reports
+  `working` / `waiting_input` / `errored` on a claimed task *without*
+  extending the lease — flag "blocked on input" or "errored" honestly
+  instead of faking liveness. Tool count 25 → 26.
+- `heartbeat_task` accepts optional `state` + `detail` to report a
+  session state while extending the lease in one call.
+- Task formatters render the session state inline with status
+  (`Status: claimed (waiting_input — "needs prod API key")`) and an
+  `Accountable:` line for `accountable_agent_id`, the human-accountable
+  owner that delegation now propagates through chains.
+- `create_webhook` accepts the new `task.state_changed` event (10 events).
+
 ## [1.6.0] - 2026-06-10
 
 ### Added

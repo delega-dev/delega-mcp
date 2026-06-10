@@ -152,6 +152,52 @@ test("formatTask shows Status only for non-default values", () => {
   assert.doesNotMatch(pending, /Status:/);
 });
 
+test("formatTask renders session state inline with status", () => {
+  const withDetail = formatTask({
+    id: 1,
+    content: "x",
+    completed: false,
+    status: "claimed",
+    session_state: "waiting_input",
+    session_state_detail: "needs prod API key",
+  });
+  assert.match(withDetail, /Status: claimed \(waiting_input — "needs prod API key"\)/);
+
+  const noDetail = formatTask({
+    id: 1,
+    content: "x",
+    completed: false,
+    status: "claimed",
+    session_state: "working",
+    session_state_detail: null,
+  });
+  assert.match(noDetail, /Status: claimed \(working\)/);
+
+  const noState = formatTask({ id: 1, content: "x", completed: false, status: "claimed" });
+  assert.match(noState, /Status: claimed\n/);
+});
+
+test("formatTask renders Accountable with both nested and flat shapes", () => {
+  const nested = formatTask({
+    id: 1,
+    content: "x",
+    completed: false,
+    accountable_agent: { id: 7, name: "ryan", display_name: "Ryan" },
+  });
+  assert.match(nested, /Accountable: Ryan \(#7\)/);
+
+  const flat = formatTask({
+    id: "t1",
+    content: "x",
+    completed: false,
+    accountable_agent_id: "agent_abc",
+  });
+  assert.match(flat, /Accountable: #agent_abc/);
+
+  const absent = formatTask({ id: 1, content: "x", completed: false });
+  assert.doesNotMatch(absent, /Accountable:/);
+});
+
 test("formatTask renders Delegated by with both nested and flat shapes", () => {
   const nested = formatTask({
     id: 1,

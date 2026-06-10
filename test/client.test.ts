@@ -248,6 +248,59 @@ test("DelegaClient.heartbeatTask posts lease_seconds to the heartbeat endpoint",
   }
 });
 
+test("DelegaClient.heartbeatTask posts state and detail alongside lease_seconds", async () => {
+  let capturedUrl = "";
+  let capturedBody: any = null;
+  const mock = mockFetch((url, init) => {
+    capturedUrl = String(url);
+    capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+    return jsonResponse({ id: "t1", lease_expires_at: "2026-06-10 12:05:00", session_state: "waiting_input" });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.heartbeatTask("t1", 600, "waiting_input", "needs prod API key");
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/heartbeat");
+    assert.deepEqual(capturedBody, { lease_seconds: 600, state: "waiting_input", detail: "needs prod API key" });
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.setTaskState posts to the state endpoint", async () => {
+  let capturedUrl = "";
+  let capturedBody: any = null;
+  const mock = mockFetch((url, init) => {
+    capturedUrl = String(url);
+    capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+    return jsonResponse({ id: "t1", session_state: "errored", session_state_detail: "build failed" });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.setTaskState("t1", "errored", "build failed");
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/state");
+    assert.deepEqual(capturedBody, { state: "errored", detail: "build failed" });
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.setTaskState omits detail when not provided and rejects self-hosted", async () => {
+  let capturedBody: any = null;
+  const mock = mockFetch((_url, init) => {
+    capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+    return jsonResponse({ id: "t1", session_state: "working" });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.setTaskState("t1", "working");
+    assert.deepEqual(capturedBody, { state: "working" });
+  } finally {
+    mock.restore();
+  }
+  const selfHosted = new DelegaClient("http://127.0.0.1:18890", "dlg_test_key");
+  await assert.rejects(() => selfHosted.setTaskState("t1", "working"), /hosted Delega API/);
+});
+
 test("DelegaClient.releaseTask posts to the release endpoint", async () => {
   let capturedUrl = "";
   const mock = mockFetch((url) => {

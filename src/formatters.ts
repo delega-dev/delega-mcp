@@ -119,13 +119,26 @@ function formatTaskBody(t: any): string[] {
   if (t.priority) lines.push(`  Priority: ${t.priority}`);
   if (t.due_date) lines.push(`  Due: ${t.due_date}`);
 
-  if (isInterestingStatus(t.status)) lines.push(`  Status: ${t.status}`);
+  if (isInterestingStatus(t.status)) {
+    // Claimed tasks may carry a session state ('working' | 'waiting_input' |
+    // 'errored') explaining *why* the claim is held, plus optional free text.
+    let statusLine = `  Status: ${t.status}`;
+    if (typeof t.session_state === "string" && t.session_state) {
+      statusLine += t.session_state_detail
+        ? ` (${t.session_state} — "${t.session_state_detail}")`
+        : ` (${t.session_state})`;
+    }
+    lines.push(statusLine);
+  }
 
   const assignee = formatAgentRef(t.assigned_to_agent, t.assigned_to_agent_id);
   if (assignee) lines.push(`  Assigned to: ${assignee}`);
 
   const creator = formatAgentRef(t.created_by_agent, t.created_by_agent_id);
   if (creator) lines.push(`  Created by: ${creator}`);
+
+  const accountable = formatAgentRef(t.accountable_agent, t.accountable_agent_id);
+  if (accountable) lines.push(`  Accountable: ${accountable}`);
 
   // Delegation metadata — only show when the task is part of a chain.
   const depth = typeof t.delegation_depth === "number" ? t.delegation_depth : 0;

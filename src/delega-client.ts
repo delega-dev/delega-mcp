@@ -259,13 +259,26 @@ export class DelegaClient {
     );
   }
 
-  async heartbeatTask(taskId: string | number, leaseSeconds?: number) {
+  async heartbeatTask(taskId: string | number, leaseSeconds?: number, state?: string, detail?: string) {
     this.assertHostedClaiming("heartbeat_task");
     const body: Record<string, unknown> = {};
     if (leaseSeconds !== undefined) body.lease_seconds = leaseSeconds;
+    if (state !== undefined) body.state = state;
+    if (detail !== undefined) body.detail = detail;
     return this.request<unknown>(
       "POST",
       `${this.pathPrefix}/tasks/${taskId}/heartbeat`,
+      body,
+    );
+  }
+
+  async setTaskState(taskId: string | number, state: string, detail?: string) {
+    this.assertHostedClaiming("set_task_state");
+    const body: Record<string, unknown> = { state };
+    if (detail !== undefined) body.detail = detail;
+    return this.request<unknown>(
+      "POST",
+      `${this.pathPrefix}/tasks/${taskId}/state`,
       body,
     );
   }

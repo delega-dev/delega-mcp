@@ -487,7 +487,7 @@ server.tool(
 
 server.tool(
   "heartbeat_task",
-  "Extend the lease on a task you have claimed. Call this periodically (before lease_expires_at) while working on a long task so the claim is not reclaimed by another agent. Fails with 409 if you no longer hold an active claim — in that case, claim a task again rather than continuing. Hosted API only.",
+  "Extend the lease on a task you have claimed. Call this periodically (before lease_expires_at) while working on a long task so the claim is not reclaimed by another agent. Optionally report a session state at the same time (working / waiting_input / errored) so humans and orchestrators can see why the claim is held. Fails with 409 if you no longer hold an active claim — in that case, claim a task again rather than continuing. Hosted API only.",
   {
     task_id: z.union([z.string(), z.number()]).describe("The claimed task ID"),
     lease_seconds: z
@@ -497,12 +497,51 @@ server.tool(
       .max(3600)
       .optional()
       .describe("New lease duration in seconds from now (30-3600, default 300)"),
+    state: z
+      .enum(["working", "waiting_input", "errored"])
+      .optional()
+      .describe("Session state to report alongside the heartbeat"),
+    detail: z
+      .string()
+      .max(500)
+      .optional()
+      .describe("Free-text detail for the state (max 500 chars, e.g. 'waiting for API key'). Requires state."),
   },
-  async ({ task_id, lease_seconds }) => {
+  async ({ task_id, lease_seconds, state, detail }) => {
     try {
-      const task: any = await client.heartbeatTask(task_id, lease_seconds);
+      const task: any = await client.heartbeatTask(task_id, lease_seconds, state, detail);
+      const stateNote = task?.session_state ? ` State: ${task.session_state}.` : "";
       return {
-        content: [{ type: "text", text: `Lease extended until ${task?.lease_expires_at}.` }],
+        content: [{ type: "text", text: `Lease extended until ${task?.lease_expires_at}.${stateNote}` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── set_task_state ──
+
+server.tool(
+  "set_task_state",
+  "Report the session state of a task you have claimed — working, waiting_input, or errored — without extending the lease. Use this to flag that you are blocked on input or hit an error: the claim stays visible as held-but-stuck instead of faking liveness. Humans and orchestrators see the state via list_tasks/get_task. Fails with 409 if you no longer hold an active claim. Hosted API only.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The claimed task ID"),
+    state: z
+      .enum(["working", "waiting_input", "errored"])
+      .describe("The session state to set"),
+    detail: z
+      .string()
+      .max(500)
+      .optional()
+      .describe("Free-text detail (max 500 chars, e.g. 'needs prod API key', 'build failed: missing dep')"),
+  },
+  async ({ task_id, state, detail }) => {
+    try {
+      const task: any = await client.setTaskState(task_id, state, detail);
+      const detailNote = task?.session_state_detail ? ` — "${task.session_state_detail}"` : "";
+      return {
+        content: [{ type: "text", text: `Task #${task_id} state set to ${task?.session_state ?? state}${detailNote} (lease unchanged, expires ${task?.lease_expires_at}).` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);
@@ -718,7 +757,7 @@ server.tool(
 
 server.tool(
   "create_webhook",
-  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented, task.claimed, task.released",
+  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented, task.claimed, task.released, task.state_changed",
   {
     url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
     events: z
@@ -733,6 +772,7 @@ server.tool(
           "task.commented",
           "task.claimed",
           "task.released",
+          "task.state_changed",
         ]),
       )
       .min(1)
