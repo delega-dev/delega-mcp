@@ -33,6 +33,10 @@ function normalizeBaseUrl(rawUrl: string): string {
   return rawUrl.replace(/\/+$/, "");
 }
 
+function pathSegment(value: string | number): string {
+  return encodeURIComponent(String(value));
+}
+
 export class DelegaClient {
   private baseUrl: string;
   private agentKey?: string;
@@ -105,20 +109,20 @@ export class DelegaClient {
   }
 
   async getTask(taskId: string | number) {
-    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}`);
+    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`);
   }
 
   async listTaskLinks(taskId: string | number) {
-    return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks/${taskId}/links`);
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/links`);
   }
 
   async linkTask(taskId: string | number, link: TaskLinkInput) {
-    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${taskId}/links`, link);
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/links`, link);
   }
 
   async getTaskContext(taskId: string | number, includeProvenance?: boolean) {
     const query = includeProvenance ? { include: "provenance" } : undefined;
-    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}/context`, undefined, query);
+    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/context`, undefined, query);
   }
 
   async createTask(data: {
@@ -144,21 +148,21 @@ export class DelegaClient {
       assigned_to_agent_id?: string | number | null;
     },
   ) {
-    return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${taskId}`, data);
+    return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`, data);
   }
 
   async assignTask(taskId: string | number, agentId: string | number | null) {
-    return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${taskId}`, {
+    return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`, {
       assigned_to_agent_id: agentId,
     });
   }
 
   async completeTask(taskId: string | number) {
-    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${taskId}/complete`);
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/complete`);
   }
 
   async deleteTask(taskId: string | number) {
-    return this.request<unknown>("DELETE", `${this.pathPrefix}/tasks/${taskId}`);
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`);
   }
 
   // ── Delegation / coordination ──
@@ -177,7 +181,7 @@ export class DelegaClient {
   ) {
     return this.request<unknown>(
       "POST",
-      `${this.pathPrefix}/tasks/${parentId}/delegate`,
+      `${this.pathPrefix}/tasks/${pathSegment(parentId)}/delegate`,
       data,
     );
   }
@@ -191,7 +195,7 @@ export class DelegaClient {
   }> {
     const resp: any = await this.request<unknown>(
       "GET",
-      `${this.pathPrefix}/tasks/${taskId}/chain`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/chain`,
     );
     // Hosted returns { root_id, chain, ... }; self-hosted returns { root: Task, chain, ... }.
     // Normalize so the formatter only handles one shape.
@@ -214,7 +218,7 @@ export class DelegaClient {
     if (source !== undefined) query.source = source;
     const resp: any = await this.request<unknown>(
       "PATCH",
-      `${this.pathPrefix}/tasks/${taskId}/context`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/context`,
       context,
       query,
     );
@@ -234,7 +238,7 @@ export class DelegaClient {
     if (key !== undefined) query.key = key;
     return this.request<unknown>(
       "GET",
-      `${this.pathPrefix}/tasks/${taskId}/context/history`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/context/history`,
       undefined,
       query,
     );
@@ -279,7 +283,7 @@ export class DelegaClient {
     if (params.task_id !== undefined) {
       return this.request<{ task: unknown | null }>(
         "POST",
-        `${this.pathPrefix}/tasks/${params.task_id}/claim`,
+        `${this.pathPrefix}/tasks/${pathSegment(params.task_id)}/claim`,
         body,
       );
     }
@@ -300,7 +304,7 @@ export class DelegaClient {
     if (detail !== undefined) body.detail = detail;
     return this.request<unknown>(
       "POST",
-      `${this.pathPrefix}/tasks/${taskId}/heartbeat`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/heartbeat`,
       body,
     );
   }
@@ -311,7 +315,7 @@ export class DelegaClient {
     if (detail !== undefined) body.detail = detail;
     return this.request<unknown>(
       "POST",
-      `${this.pathPrefix}/tasks/${taskId}/state`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/state`,
       body,
     );
   }
@@ -320,7 +324,7 @@ export class DelegaClient {
     this.assertHostedClaiming("release_task");
     return this.request<unknown>(
       "POST",
-      `${this.pathPrefix}/tasks/${taskId}/release`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/release`,
       {},
     );
   }
@@ -333,7 +337,7 @@ export class DelegaClient {
   ) {
     return this.request<unknown>(
       "POST",
-      `${this.pathPrefix}/tasks/${taskId}/comments`,
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/comments`,
       data,
     );
   }
@@ -361,7 +365,7 @@ export class DelegaClient {
   }
 
   async deleteAgent(agentId: string | number) {
-    return this.request<unknown>("DELETE", `${this.pathPrefix}/agents/${agentId}`);
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/agents/${pathSegment(agentId)}`);
   }
 
   // ── Webhooks ──
@@ -375,6 +379,6 @@ export class DelegaClient {
   }
 
   async deleteWebhook(webhookId: string | number) {
-    return this.request<unknown>("DELETE", `${this.pathPrefix}/webhooks/${webhookId}`);
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/webhooks/${pathSegment(webhookId)}`);
   }
 }

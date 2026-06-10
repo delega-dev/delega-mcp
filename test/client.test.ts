@@ -236,6 +236,32 @@ test("DelegaClient task link methods call hosted link endpoints", async () => {
   }
 });
 
+test("DelegaClient encodes path parameters before building URLs", async () => {
+  const captured: string[] = [];
+  const mock = mockFetch((url) => {
+    captured.push(String(url));
+    return jsonResponse({});
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.getTask("../agents?x=y");
+    await client.assignTask("../agents?x=y", "agt_safe");
+    await client.updateTaskContext("task/with?query=true", { step: "safe" }, 2);
+    await client.deleteAgent("agt/with/slash");
+    await client.deleteWebhook("wh?redirect=/tasks");
+
+    assert.deepEqual(captured, [
+      "https://api.delega.dev/v1/tasks/..%2Fagents%3Fx%3Dy",
+      "https://api.delega.dev/v1/tasks/..%2Fagents%3Fx%3Dy",
+      "https://api.delega.dev/v1/tasks/task%2Fwith%3Fquery%3Dtrue/context?expected_version=2",
+      "https://api.delega.dev/v1/agents/agt%2Fwith%2Fslash",
+      "https://api.delega.dev/v1/webhooks/wh%3Fredirect%3D%2Ftasks",
+    ]);
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient.getContextHistory fetches all keys or one key", async () => {
   const captured: string[] = [];
   const mock = mockFetch((url) => {
