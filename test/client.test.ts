@@ -154,3 +154,89 @@ test("DelegaClient.updateTaskContext normalizes hosted bare-context vs self-host
     selfMock.restore();
   }
 });
+
+test("DelegaClient.claimTask posts filters and returns the claimed task", async () => {
+  let capturedUrl = "";
+  let capturedBody: any = null;
+  const mock = mockFetch((url, init) => {
+    capturedUrl = String(url);
+    capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+    return jsonResponse({ task: { id: "t1", status: "claimed", lease_expires_at: "2026-06-10 12:00:00" } });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    const result = await client.claimTask({ labels: ["bug"], lease_seconds: 120 });
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/claim");
+    assert.deepEqual(capturedBody, { labels: ["bug"], lease_seconds: 120 });
+    assert.equal((result.task as any).status, "claimed");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.claimTask surfaces an empty queue as task: null", async () => {
+  const mock = mockFetch(() => jsonResponse({ task: null }));
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    const result = await client.claimTask({});
+    assert.equal(result.task, null);
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient claiming methods reject self-hosted base URLs", async () => {
+  const client = new DelegaClient("http://127.0.0.1:18890", "dlg_test_key");
+  await assert.rejects(() => client.claimTask({}), /hosted Delega API/);
+  await assert.rejects(() => client.heartbeatTask("t1"), /hosted Delega API/);
+  await assert.rejects(() => client.releaseTask("t1"), /hosted Delega API/);
+});
+
+test("DelegaClient.heartbeatTask posts lease_seconds to the heartbeat endpoint", async () => {
+  let capturedUrl = "";
+  let capturedBody: any = null;
+  const mock = mockFetch((url, init) => {
+    capturedUrl = String(url);
+    capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+    return jsonResponse({ id: "t1", lease_expires_at: "2026-06-10 12:05:00" });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.heartbeatTask("t1", 600);
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/heartbeat");
+    assert.deepEqual(capturedBody, { lease_seconds: 600 });
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.releaseTask posts to the release endpoint", async () => {
+  let capturedUrl = "";
+  const mock = mockFetch((url) => {
+    capturedUrl = String(url);
+    return jsonResponse({ id: "t1", status: "open", claimed_by_agent_id: null });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    const task: any = await client.releaseTask("t1");
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/release");
+    assert.equal(task.status, "open");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.listTasks passes the claimed filter", async () => {
+  let capturedUrl = "";
+  const mock = mockFetch((url) => {
+    capturedUrl = String(url);
+    return jsonResponse([]);
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.listTasks({ claimed: true });
+    assert.ok(capturedUrl.includes("claimed=true"));
+  } finally {
+    mock.restore();
+  }
+});

@@ -83,12 +83,14 @@ export class DelegaClient {
     label?: string;
     due?: "today" | "upcoming" | "overdue";
     completed?: boolean;
+    claimed?: boolean;
   }) {
     const query: Record<string, string> = {};
     if (params.project_id !== undefined) query.project_id = String(params.project_id);
     if (params.label !== undefined) query.label = params.label;
     if (params.due !== undefined) query.due = params.due;
     if (params.completed !== undefined) query.completed = String(params.completed);
+    if (params.claimed !== undefined) query.claimed = String(params.claimed);
 
     return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks`, undefined, query);
   }
@@ -212,6 +214,53 @@ export class DelegaClient {
       );
     }
     return this.request<unknown>("GET", `${this.pathPrefix}/usage`);
+  }
+
+  // ── Claiming (hosted API only) ──
+
+  private assertHostedClaiming(operation: string): void {
+    if (this.pathPrefix !== "/v1") {
+      throw new Error(
+        `${operation} is only available on the hosted Delega API (api.delega.dev). Self-hosted deployments do not expose task-claiming endpoints yet.`,
+      );
+    }
+  }
+
+  async claimTask(params: {
+    project_id?: ProjectRef;
+    labels?: string[];
+    lease_seconds?: number;
+  }) {
+    this.assertHostedClaiming("claim_task");
+    const body: Record<string, unknown> = {};
+    if (params.project_id !== undefined) body.project_id = String(params.project_id);
+    if (params.labels?.length) body.labels = params.labels;
+    if (params.lease_seconds !== undefined) body.lease_seconds = params.lease_seconds;
+    return this.request<{ task: unknown | null }>(
+      "POST",
+      `${this.pathPrefix}/tasks/claim`,
+      body,
+    );
+  }
+
+  async heartbeatTask(taskId: string | number, leaseSeconds?: number) {
+    this.assertHostedClaiming("heartbeat_task");
+    const body: Record<string, unknown> = {};
+    if (leaseSeconds !== undefined) body.lease_seconds = leaseSeconds;
+    return this.request<unknown>(
+      "POST",
+      `${this.pathPrefix}/tasks/${taskId}/heartbeat`,
+      body,
+    );
+  }
+
+  async releaseTask(taskId: string | number) {
+    this.assertHostedClaiming("release_task");
+    return this.request<unknown>(
+      "POST",
+      `${this.pathPrefix}/tasks/${taskId}/release`,
+      {},
+    );
   }
 
   // ── Comments ──

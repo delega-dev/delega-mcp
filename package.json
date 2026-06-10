@@ -1,6 +1,6 @@
 {
   "name": "@delega-dev/mcp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "mcpName": "io.github.delega-dev/delega",
   "description": "MCP server for Delega — the task handoff layer for AI agents",
   "type": "module",

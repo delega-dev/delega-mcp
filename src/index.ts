@@ -91,10 +91,11 @@ server.tool(
       .optional()
       .describe("Filter by due date category"),
     completed: z.boolean().optional().describe("Filter by completion status"),
+    claimed: z.boolean().optional().describe("Filter by claim status (true = currently claimed tasks)"),
   },
-  async ({ project_id, label, due, completed }) => {
+  async ({ project_id, label, due, completed, claimed }) => {
     try {
-      const tasks = await client.listTasks({ project_id, label, due, completed });
+      const tasks = await client.listTasks({ project_id, label, due, completed, claimed });
       if (!tasks.length) {
         return { content: [{ type: "text", text: "No tasks found." }] };
       }
@@ -383,6 +384,88 @@ server.tool(
   },
 );
 
+// ── claim_task ──
+
+server.tool(
+  "claim_task",
+  "Claim the next available task from the queue for exclusive processing (work-queue semantics). Atomically picks the highest-priority claimable task — open, unclaimed, and unassigned or assigned to you. Returns the claimed task, or reports an empty queue. The claim is a lease (default 300 seconds): extend it with heartbeat_task while working, requeue with release_task, or finish with complete_task. Hosted API only.",
+  {
+    project_id: projectRefSchema.optional().describe("Only claim tasks in this project"),
+    labels: z.array(z.string()).optional().describe("Only claim tasks carrying all of these labels"),
+    lease_seconds: z
+      .number()
+      .int()
+      .min(30)
+      .max(3600)
+      .optional()
+      .describe("Lease duration in seconds (30-3600, default 300)"),
+  },
+  async ({ project_id, labels, lease_seconds }) => {
+    try {
+      const resp = await client.claimTask({ project_id, labels, lease_seconds });
+      if (!resp.task) {
+        return { content: [{ type: "text", text: "No claimable tasks in the queue." }] };
+      }
+      const t = resp.task as any;
+      return {
+        content: [{
+          type: "text",
+          text: `Task claimed (lease expires ${t.lease_expires_at}):\n\n${formatTaskDetail(t)}`,
+        }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── heartbeat_task ──
+
+server.tool(
+  "heartbeat_task",
+  "Extend the lease on a task you have claimed. Call this periodically (before lease_expires_at) while working on a long task so the claim is not reclaimed by another agent. Fails with 409 if you no longer hold an active claim — in that case, claim a task again rather than continuing. Hosted API only.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The claimed task ID"),
+    lease_seconds: z
+      .number()
+      .int()
+      .min(30)
+      .max(3600)
+      .optional()
+      .describe("New lease duration in seconds from now (30-3600, default 300)"),
+  },
+  async ({ task_id, lease_seconds }) => {
+    try {
+      const task: any = await client.heartbeatTask(task_id, lease_seconds);
+      return {
+        content: [{ type: "text", text: `Lease extended until ${task?.lease_expires_at}.` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── release_task ──
+
+server.tool(
+  "release_task",
+  "Release a task you have claimed back to the queue without completing it. Use when you cannot finish the work or another agent should take over — the task returns to open status and becomes immediately claimable. Hosted API only.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The claimed task ID to release"),
+  },
+  async ({ task_id }) => {
+    try {
+      await client.releaseTask(task_id);
+      return {
+        content: [{ type: "text", text: `Task #${task_id} released back to the queue.` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
 // ── delete_task ──
 
 server.tool(
@@ -571,7 +654,7 @@ server.tool(
 
 server.tool(
   "create_webhook",
-  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented",
+  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented, task.claimed, task.released",
   {
     url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
     events: z
@@ -584,6 +667,8 @@ server.tool(
           "task.assigned",
           "task.delegated",
           "task.commented",
+          "task.claimed",
+          "task.released",
         ]),
       )
       .min(1)
