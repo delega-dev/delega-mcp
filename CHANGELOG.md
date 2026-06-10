@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-06-10
+
+### Fixed
+- Security: encode path parameters (task/agent/webhook IDs) before building
+  request URLs. Crafted IDs such as `../agents` or `1?foo=bar` could otherwise
+  redirect a request to a different same-host endpoint or smuggle query/path
+  segments. All client methods now route IDs through `pathSegment()`
+  (`encodeURIComponent`).
+
 ## [1.9.0] - 2026-06-10
 
 ### Added
