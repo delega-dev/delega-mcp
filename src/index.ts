@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { DelegaApiError, DelegaClient } from "./delega-client.js";
 import {
@@ -20,6 +21,11 @@ const client = new DelegaClient(
   process.env.DELEGA_API_URL,
   process.env.DELEGA_AGENT_KEY || process.env.DELEGA_API_KEY,
 );
+
+const packageJson = JSON.parse(
+  readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+) as { version?: string };
+const serverVersion = packageJson.version ?? "0.0.0";
 
 function formatAgent(a: any): string {
   return formatAgentBase(a, {
@@ -100,7 +106,7 @@ const projectRefSchema = z.union([z.string(), z.number()]);
 
 const server = new McpServer({
   name: "delega-mcp",
-  version: "1.2.1",
+  version: serverVersion,
 });
 
 // ── list_tasks ──
