@@ -173,6 +173,55 @@ test("DelegaClient.updateTaskContext passes expected_version and parses { contex
   }
 });
 
+test("DelegaClient.updateTaskContext passes provenance source", async () => {
+  let capturedUrl = "";
+  const mock = mockFetch((url) => {
+    capturedUrl = String(url);
+    return jsonResponse({ context: { step: "done" }, version: 4 });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.updateTaskContext("t1", { step: "done" }, 3, "human_stated");
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/context?expected_version=3&source=human_stated");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.getTaskContext can request provenance", async () => {
+  let capturedUrl = "";
+  const mock = mockFetch((url) => {
+    capturedUrl = String(url);
+    return jsonResponse({ context: { step: "done" }, version: 4, provenance: {} });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.getTaskContext("t1", true);
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/context?include=provenance");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.getContextHistory fetches all keys or one key", async () => {
+  const captured: string[] = [];
+  const mock = mockFetch((url) => {
+    captured.push(String(url));
+    return jsonResponse({ entries: [], next_cursor: null });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.getContextHistory("t1");
+    await client.getContextHistory("t1", "step");
+    assert.deepEqual(captured, [
+      "https://api.delega.dev/v1/tasks/t1/context/history",
+      "https://api.delega.dev/v1/tasks/t1/context/history?key=step",
+    ]);
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient.claimTask posts filters and returns the claimed task", async () => {
   let capturedUrl = "";
   let capturedBody: any = null;

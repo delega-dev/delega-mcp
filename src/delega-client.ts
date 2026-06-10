@@ -1,6 +1,7 @@
 const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
 type ProjectRef = string | number;
+export type ContextSource = "human_stated" | "agent_inferred" | "agent_observed" | "imported";
 
 export class DelegaApiError extends Error {
   status: number;
@@ -99,8 +100,9 @@ export class DelegaClient {
     return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
-  async getTaskContext(taskId: string | number) {
-    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}/context`);
+  async getTaskContext(taskId: string | number, includeProvenance?: boolean) {
+    const query = includeProvenance ? { include: "provenance" } : undefined;
+    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}/context`, undefined, query);
   }
 
   async createTask(data: {
@@ -189,12 +191,16 @@ export class DelegaClient {
     taskId: string | number,
     context: Record<string, unknown>,
     expectedVersion?: number,
+    source?: ContextSource,
   ): Promise<{ context: Record<string, unknown>; version?: number; task?: any }> {
-    const qs = expectedVersion !== undefined ? `?expected_version=${expectedVersion}` : "";
+    const query: Record<string, string> = {};
+    if (expectedVersion !== undefined) query.expected_version = String(expectedVersion);
+    if (source !== undefined) query.source = source;
     const resp: any = await this.request<unknown>(
       "PATCH",
-      `${this.pathPrefix}/tasks/${taskId}/context${qs}`,
+      `${this.pathPrefix}/tasks/${taskId}/context`,
       context,
+      query,
     );
     // Self-hosted returns the full task; hosted returns { context, version }
     // (older hosted deployments returned the bare merged context dict).
@@ -205,6 +211,17 @@ export class DelegaClient {
       return { context: (resp.context ?? {}) as Record<string, unknown>, version: resp.version };
     }
     return { context: (resp ?? {}) as Record<string, unknown> };
+  }
+
+  async getContextHistory(taskId: string | number, key?: string) {
+    const query: Record<string, string> = {};
+    if (key !== undefined) query.key = key;
+    return this.request<unknown>(
+      "GET",
+      `${this.pathPrefix}/tasks/${taskId}/context/history`,
+      undefined,
+      query,
+    );
   }
 
   async findDuplicateTasks(content: string, threshold?: number) {

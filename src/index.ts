@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { DelegaApiError, DelegaClient } from "./delega-client.js";
+import { DelegaApiError, DelegaClient, type ContextSource } from "./delega-client.js";
 import {
   formatAgent as formatAgentBase,
   formatChain,
@@ -101,6 +101,51 @@ function toolErrorResult(error: unknown) {
 }
 
 const projectRefSchema = z.union([z.string(), z.number()]);
+const contextSourceSchema = z.enum(["human_stated", "agent_inferred", "agent_observed", "imported"]);
+
+function formatContextProvenance(provenance: unknown): string[] {
+  if (!provenance || typeof provenance !== "object") return [];
+  const rows = Object.entries(provenance as Record<string, any>);
+  if (!rows.length) return [];
+  return [
+    "",
+    "Provenance:",
+    ...rows.map(([key, p]) => {
+      const author = p?.author_name || p?.author_agent_id || "unknown";
+      const source = p?.source || "unknown";
+      const version = typeof p?.version === "number" ? `v${p.version}` : "v?";
+      const created = p?.created_at || "unknown time";
+      return `  ${key}: by ${author}, ${source}, ${created}, ${version}`;
+    }),
+  ];
+}
+
+function formatContextHistory(raw: any, taskId: string | number): string {
+  const entries = Array.isArray(raw?.entries) ? raw.entries : [];
+  const lines = [`Context history for task #${taskId}:`];
+  if (!entries.length) {
+    lines.push("", "No context history found.");
+    return lines.join("\n");
+  }
+  for (const entry of entries) {
+    const author = entry?.author_name || entry?.author_agent_id || "unknown";
+    const source = entry?.source || "unknown";
+    const version = typeof entry?.version === "number" ? `v${entry.version}` : "v?";
+    const stale = entry?.superseded_at ? ` superseded ${entry.superseded_at}` : " live";
+    lines.push(
+      "",
+      `${entry?.key ?? "(unknown key)"} (${version}, ${source}, by ${author}, ${entry?.created_at ?? "unknown time"},${stale})`,
+      JSON.stringify(entry?.value ?? null, null, 2)
+        .split("\n")
+        .map((l) => `  ${l}`)
+        .join("\n"),
+    );
+  }
+  if (raw?.next_cursor) {
+    lines.push("", `More history is available with cursor ${raw.next_cursor}.`);
+  }
+  return lines.join("\n");
+}
 
 // ── Server ──
 
@@ -305,19 +350,27 @@ server.tool(
   "Read a task's persistent context blob — the shared state, decisions, and notes saved across sessions. Call this when resuming a task to recover what was decided and done before, so work continues instead of restarting. Pair with update_task_context to write state back before a session ends.",
   {
     task_id: z.union([z.string(), z.number()]).describe("The task ID whose context to read"),
+    include_provenance: z
+      .boolean()
+      .optional()
+      .describe("Include per-key author/source/version provenance for current live context entries."),
   },
-  async ({ task_id }) => {
+  async ({ task_id, include_provenance }) => {
     try {
-      const raw: any = await client.getTaskContext(task_id);
+      const raw: any = await client.getTaskContext(task_id, include_provenance);
       const context = raw && typeof raw === "object" && "context" in raw ? raw.context : raw;
       const version = raw && typeof raw === "object" && typeof raw.version === "number" ? raw.version : undefined;
       const versionNote = version !== undefined
         ? ` (context version ${version} — pass expected_version ${version} to update_task_context to guard your write)`
         : "";
       const hasKeys = context && typeof context === "object" && Object.keys(context).length > 0;
-      const text = hasKeys
-        ? `Context for task #${task_id}${versionNote}:\n\n${JSON.stringify(context, null, 2)}`
-        : `Task #${task_id} has no saved context yet${versionNote}.`;
+      const lines = [
+        hasKeys
+          ? `Context for task #${task_id}${versionNote}:\n\n${JSON.stringify(context, null, 2)}`
+          : `Task #${task_id} has no saved context yet${versionNote}.`,
+        ...formatContextProvenance(raw?.provenance),
+      ];
+      const text = lines.join("\n");
       return { content: [{ type: "text", text }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
@@ -341,10 +394,18 @@ server.tool(
       .min(0)
       .optional()
       .describe("Optimistic concurrency guard: the context version returned by get_task_context. Omit for an unguarded merge."),
+    source: contextSourceSchema
+      .optional()
+      .describe("Attribution source for this context write. Defaults to agent_inferred."),
   },
-  async ({ task_id, context, expected_version }) => {
+  async ({ task_id, context, expected_version, source }) => {
     try {
-      const { context: merged, version, task } = await client.updateTaskContext(task_id, context, expected_version);
+      const { context: merged, version, task } = await client.updateTaskContext(
+        task_id,
+        context,
+        expected_version,
+        source as ContextSource | undefined,
+      );
       const lines = [
         version !== undefined
           ? `Context updated for task #${task_id} (now version ${version}).`
@@ -383,6 +444,25 @@ server.tool(
           // fall through to the generic handler
         }
       }
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── get_context_history ──
+
+server.tool(
+  "get_context_history",
+  "Read the append-only provenance ledger for a task's context. Use key to narrow history to one context key; omitted key returns the newest history across all keys.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The task ID whose context history to read"),
+    key: z.string().optional().describe("Optional context key to filter history"),
+  },
+  async ({ task_id, key }) => {
+    try {
+      const raw = await client.getContextHistory(task_id, key);
+      return { content: [{ type: "text", text: formatContextHistory(raw, task_id) }] };
+    } catch (error: unknown) {
       return toolErrorResult(error);
     }
   },
