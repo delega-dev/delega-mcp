@@ -82,7 +82,7 @@ const server = new McpServer({
 
 server.tool(
   "list_tasks",
-  "List tasks from Delega, optionally filtered by project, label, due date, or completion status",
+  "List tasks from Delega, scoped to tasks this agent created, was assigned, or completed. Optionally filtered by project, label, due date, or completion status. To resume work at the start of a session, call with completed:false to see your open tasks, then use get_task_context on each to recover prior decisions and state instead of starting from zero.",
   {
     project_id: projectRefSchema.optional().describe("Filter by project ID"),
     label: z.string().optional().describe("Filter by label name"),
@@ -260,6 +260,29 @@ server.tool(
     try {
       const chain = await client.getTaskChain(task_id);
       return { content: [{ type: "text", text: formatChain(chain) }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── get_task_context ──
+
+server.tool(
+  "get_task_context",
+  "Read a task's persistent context blob — the shared state, decisions, and notes saved across sessions. Call this when resuming a task to recover what was decided and done before, so work continues instead of restarting. Pair with update_task_context to write state back before a session ends.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The task ID whose context to read"),
+  },
+  async ({ task_id }) => {
+    try {
+      const raw: any = await client.getTaskContext(task_id);
+      const context = raw && typeof raw === "object" && "context" in raw ? raw.context : raw;
+      const hasKeys = context && typeof context === "object" && Object.keys(context).length > 0;
+      const text = hasKeys
+        ? `Context for task #${task_id}:\n\n${JSON.stringify(context, null, 2)}`
+        : `Task #${task_id} has no saved context yet.`;
+      return { content: [{ type: "text", text }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }

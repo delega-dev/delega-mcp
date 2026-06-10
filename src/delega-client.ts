@@ -97,6 +97,10 @@ export class DelegaClient {
     return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}`);
   }
 
+  async getTaskContext(taskId: string | number) {
+    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}/context`);
+  }
+
   async createTask(data: {
     content: string;
     description?: string;
