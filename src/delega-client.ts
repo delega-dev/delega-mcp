@@ -188,15 +188,21 @@ export class DelegaClient {
   async updateTaskContext(
     taskId: string | number,
     context: Record<string, unknown>,
-  ): Promise<{ context: Record<string, unknown>; task?: any }> {
+    expectedVersion?: number,
+  ): Promise<{ context: Record<string, unknown>; version?: number; task?: any }> {
+    const qs = expectedVersion !== undefined ? `?expected_version=${expectedVersion}` : "";
     const resp: any = await this.request<unknown>(
       "PATCH",
-      `${this.pathPrefix}/tasks/${taskId}/context`,
+      `${this.pathPrefix}/tasks/${taskId}/context${qs}`,
       context,
     );
-    // Self-hosted returns the full task; hosted returns the bare merged context dict.
+    // Self-hosted returns the full task; hosted returns { context, version }
+    // (older hosted deployments returned the bare merged context dict).
     if (resp && typeof resp === "object" && typeof resp.content === "string" && "id" in resp) {
       return { task: resp, context: resp.context ?? {} };
+    }
+    if (resp && typeof resp === "object" && "context" in resp && typeof resp.version === "number") {
+      return { context: (resp.context ?? {}) as Record<string, unknown>, version: resp.version };
     }
     return { context: (resp ?? {}) as Record<string, unknown> };
   }

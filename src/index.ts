@@ -304,10 +304,14 @@ server.tool(
     try {
       const raw: any = await client.getTaskContext(task_id);
       const context = raw && typeof raw === "object" && "context" in raw ? raw.context : raw;
+      const version = raw && typeof raw === "object" && typeof raw.version === "number" ? raw.version : undefined;
+      const versionNote = version !== undefined
+        ? ` (context version ${version} — pass expected_version ${version} to update_task_context to guard your write)`
+        : "";
       const hasKeys = context && typeof context === "object" && Object.keys(context).length > 0;
       const text = hasKeys
-        ? `Context for task #${task_id}:\n\n${JSON.stringify(context, null, 2)}`
-        : `Task #${task_id} has no saved context yet.`;
+        ? `Context for task #${task_id}${versionNote}:\n\n${JSON.stringify(context, null, 2)}`
+        : `Task #${task_id} has no saved context yet${versionNote}.`;
       return { content: [{ type: "text", text }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
@@ -319,17 +323,28 @@ server.tool(
 
 server.tool(
   "update_task_context",
-  "Merge keys into a task's persistent context blob. Existing keys are preserved; supplied keys are added or overwritten. Use this to pass shared state between delegated agents instead of re-describing context in task descriptions.",
+  "Merge keys into a task's persistent context blob. Existing keys are preserved; supplied keys are added or overwritten. Use this to pass shared state between delegated agents instead of re-describing context in task descriptions. Pass expected_version (from get_task_context) to guard against concurrent writers: if the context changed since your read, the write fails with a conflict that returns the current version + context to merge with.",
   {
     task_id: z.union([z.string(), z.number()]).describe("The task ID whose context to update"),
     context: z
       .record(z.string(), z.unknown())
       .describe("Object whose keys are merged (not replaced) into existing context"),
+    expected_version: z
+      .number()
+      .int()
+      .min(0)
+      .optional()
+      .describe("Optimistic concurrency guard: the context version returned by get_task_context. Omit for an unguarded merge."),
   },
-  async ({ task_id, context }) => {
+  async ({ task_id, context, expected_version }) => {
     try {
-      const { context: merged, task } = await client.updateTaskContext(task_id, context);
-      const lines = [`Context updated for task #${task_id}.`, ""];
+      const { context: merged, version, task } = await client.updateTaskContext(task_id, context, expected_version);
+      const lines = [
+        version !== undefined
+          ? `Context updated for task #${task_id} (now version ${version}).`
+          : `Context updated for task #${task_id}.`,
+        "",
+      ];
       if (task) {
         lines.push(formatTaskDetail(task));
       } else {
@@ -342,6 +357,26 @@ server.tool(
       }
       return { content: [{ type: "text", text: lines.join("\n") }] };
     } catch (error: unknown) {
+      // A version conflict carries everything needed to recover — surface
+      // the current state so the agent can merge and retry in one step.
+      if (error instanceof DelegaApiError && error.status === 409) {
+        try {
+          const body = JSON.parse(error.responseBody);
+          if (typeof body?.version === "number") {
+            const text = [
+              `Context version conflict for task #${task_id}: another writer updated the context since your read.`,
+              "",
+              `Current context (version ${body.version}):`,
+              JSON.stringify(body.context ?? {}, null, 2),
+              "",
+              `Merge your changes with the above and retry with expected_version ${body.version}.`,
+            ].join("\n");
+            return { content: [{ type: "text", text }], isError: true };
+          }
+        } catch {
+          // fall through to the generic handler
+        }
+      }
       return toolErrorResult(error);
     }
   },

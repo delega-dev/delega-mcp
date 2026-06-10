@@ -155,6 +155,24 @@ test("DelegaClient.updateTaskContext normalizes hosted bare-context vs self-host
   }
 });
 
+test("DelegaClient.updateTaskContext passes expected_version and parses { context, version }", async () => {
+  let capturedUrl = "";
+  const mock = mockFetch((url) => {
+    capturedUrl = String(url);
+    return jsonResponse({ context: { step: "done" }, version: 4 });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    const result = await client.updateTaskContext("t1", { step: "done" }, 3);
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t1/context?expected_version=3");
+    assert.deepEqual(result.context, { step: "done" });
+    assert.equal(result.version, 4);
+    assert.equal(result.task, undefined);
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient.claimTask posts filters and returns the claimed task", async () => {
   let capturedUrl = "";
   let capturedBody: any = null;
