@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-06-10
+
+### Fixed
+- Tool errors now surface the API's actionable message for 400/403/404/409
+  responses instead of a generic phrase. A write denied for lack of a claim
+  now reads "You do not have write access to this task. Claim it via POST
+  /tasks/:id/claim, or have it assigned to you. (MCP: claim_task with
+  task_id)" rather than "Delega API denied this action." Auth (401) and 5xx
+  errors stay generic.
+
 ## [1.5.0] - 2026-06-10
 
 ### Added

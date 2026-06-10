@@ -27,6 +27,21 @@ function formatAgent(a: any): string {
   });
 }
 
+// API error bodies are JSON `{error, status}`. For client-correctable
+// statuses the message is written to be agent-actionable (e.g. a 403 names
+// the claim-first remedy, a 409 names the heartbeat remedy) — surface it
+// instead of a generic phrase. Auth and server errors stay generic.
+function apiErrorDetail(error: DelegaApiError): string | null {
+  try {
+    const parsed = JSON.parse(error.responseBody);
+    const msg = typeof parsed?.error === "string" ? parsed.error.trim() : "";
+    if (!msg) return null;
+    return msg.length > 300 ? `${msg.slice(0, 300)}…` : msg;
+  } catch {
+    return null;
+  }
+}
+
 function sanitizeToolError(error: unknown): string {
   if (error instanceof DelegaApiError) {
     if (error.responseBody) {
@@ -37,17 +52,27 @@ function sanitizeToolError(error: unknown): string {
       });
     }
 
+    const detail = apiErrorDetail(error);
     if (error.status === 400 || error.status === 422) {
-      return "Delega API rejected the request. Check the tool inputs and try again.";
+      return detail
+        ? `Delega API rejected the request: ${detail}`
+        : "Delega API rejected the request. Check the tool inputs and try again.";
     }
     if (error.status === 401) {
       return "Delega API authentication failed. Check DELEGA_AGENT_KEY.";
     }
     if (error.status === 403) {
-      return "Delega API denied this action.";
+      if (!detail) return "Delega API denied this action.";
+      // The API phrases the remedy in REST terms; name the MCP tool too.
+      return detail.includes("/tasks/:id/claim")
+        ? `${detail} (MCP: claim_task with task_id)`
+        : detail;
     }
     if (error.status === 404) {
-      return "The requested Delega resource was not found.";
+      return detail ?? "The requested Delega resource was not found.";
+    }
+    if (error.status === 409) {
+      return detail ?? "Delega API reported a conflict — the resource changed since you read it.";
     }
     if (error.status >= 500) {
       return "Delega API returned a server error.";
