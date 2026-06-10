@@ -203,6 +203,39 @@ test("DelegaClient.getTaskContext can request provenance", async () => {
   }
 });
 
+test("DelegaClient task link methods call hosted link endpoints", async () => {
+  const captured: Array<{ url: string; method?: string; body?: any }> = [];
+  const mock = mockFetch((url, init) => {
+    captured.push({
+      url: String(url),
+      method: init?.method,
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    return jsonResponse(init?.method === "POST"
+      ? { id: "lnk1", kind: "branch", repo: "delega-dev/delega-api", ref: "main" }
+      : [{ id: "lnk1", kind: "branch", repo: "delega-dev/delega-api", ref: "main" }]);
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.linkTask("t1", { kind: "branch", repo: "delega-dev/delega-api", ref: "main", url: null });
+    await client.listTaskLinks("t1");
+    assert.deepEqual(captured, [
+      {
+        url: "https://api.delega.dev/v1/tasks/t1/links",
+        method: "POST",
+        body: { kind: "branch", repo: "delega-dev/delega-api", ref: "main", url: null },
+      },
+      {
+        url: "https://api.delega.dev/v1/tasks/t1/links",
+        method: "GET",
+        body: undefined,
+      },
+    ]);
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient.getContextHistory fetches all keys or one key", async () => {
   const captured: string[] = [];
   const mock = mockFetch((url) => {

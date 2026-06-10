@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-06-10
+
+### Added
+- Task link support for the Phase 3 Git/PR linking wedge. New tools:
+  `link_task` (`task_id`, `kind`, `repo?`, `ref`, `url?`) and
+  `list_task_links`. `get_task` now includes attached links in its detail
+  output. Tool count 27 → 29.
+
 ## [1.8.0] - 2026-06-10
 
 ### Added

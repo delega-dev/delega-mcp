@@ -2,6 +2,14 @@ const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
 type ProjectRef = string | number;
 export type ContextSource = "human_stated" | "agent_inferred" | "agent_observed" | "imported";
+export type TaskLinkKind = "branch" | "commit" | "pr" | "url";
+
+export interface TaskLinkInput {
+  kind: TaskLinkKind;
+  repo?: string | null;
+  ref: string;
+  url?: string | null;
+}
 
 export class DelegaApiError extends Error {
   status: number;
@@ -98,6 +106,14 @@ export class DelegaClient {
 
   async getTask(taskId: string | number) {
     return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${taskId}`);
+  }
+
+  async listTaskLinks(taskId: string | number) {
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks/${taskId}/links`);
+  }
+
+  async linkTask(taskId: string | number, link: TaskLinkInput) {
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${taskId}/links`, link);
   }
 
   async getTaskContext(taskId: string | number, includeProvenance?: boolean) {

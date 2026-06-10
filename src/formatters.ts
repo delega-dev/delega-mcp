@@ -171,6 +171,19 @@ function formatSubtaskLines(t: any): string[] {
   return out;
 }
 
+function formatTaskLinkLines(t: any): string[] {
+  if (!Array.isArray(t.links) || t.links.length === 0) return [];
+  const out: string[] = ["  Links:"];
+  for (const link of t.links) {
+    const kind = link?.kind ?? "link";
+    const repo = link?.repo ? `${link.repo} ` : "";
+    const ref = link?.ref ?? "(missing ref)";
+    const url = link?.url ? ` — ${link.url}` : "";
+    out.push(`    ${kind}: ${repo}${ref}${url}`);
+  }
+  return out;
+}
+
 // List-view render: include keys-only context (cheap, non-polluting).
 export function formatTask(t: any): string {
   const lines = formatTaskBody(t);
@@ -207,6 +220,7 @@ export function formatTaskDetail(t: any): string {
   if (ctx && Object.keys(ctx).length) {
     lines.push(...formatContextPretty(ctx));
   }
+  lines.push(...formatTaskLinkLines(t));
   lines.push(...formatSubtaskLines(t));
   return lines.join("\n");
 }

@@ -249,6 +249,31 @@ test("formatTaskDetail pretty-prints context", () => {
   assert.doesNotMatch(out, /Context keys:/);
 });
 
+test("formatTaskDetail renders task links", () => {
+  const out = formatTaskDetail({
+    id: 1,
+    content: "x",
+    completed: false,
+    links: [
+      {
+        kind: "pr",
+        repo: "delega-dev/delega-api",
+        ref: "42",
+        url: "https://github.com/delega-dev/delega-api/pull/42",
+      },
+      {
+        kind: "url",
+        repo: null,
+        ref: "https://delega.dev/docs",
+      },
+    ],
+  });
+
+  assert.match(out, /Links:/);
+  assert.match(out, /pr: delega-dev\/delega-api 42 — https:\/\/github.com\/delega-dev\/delega-api\/pull\/42/);
+  assert.match(out, /url: https:\/\/delega.dev\/docs/);
+});
+
 test("formatTaskDetail truncates oversized context blobs", () => {
   const big = { data: "x".repeat(3000) };
   const out = formatTaskDetail({ id: 1, content: "x", completed: false, context: big });

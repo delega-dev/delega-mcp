@@ -51,7 +51,9 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | Tool | Description |
 |------|-------------|
 | `list_tasks` | List tasks, filter by project, label, due date, completion |
-| `get_task` | Get full task details including subtasks |
+| `get_task` | Get full task details including subtasks and task links |
+| `link_task` | Attach a branch, commit, PR, or URL link to a task |
+| `list_task_links` | List branch, commit, PR, and URL links attached to a task |
 | `create_task` | Create a new task |
 | `update_task` | Update task fields (incl. `assigned_to_agent_id`) |
 | `assign_task` | Assign a task to an agent (or pass `null` to unassign) |
@@ -72,7 +74,7 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `register_agent` | Register a new agent (returns API key) |
 | `delete_agent` | Delete an agent (refused if agent has active tasks) |
 | `list_webhooks` | List all webhooks (admin only) |
-| `create_webhook` | Create a webhook for event notifications (admin only) |
+| `create_webhook` | Create a webhook for event notifications, including `task.linked` (admin only) |
 | `delete_webhook` | Delete a webhook by ID (admin only) |
 
 ### Task output format
@@ -107,6 +109,14 @@ Tasks that are part of a delegation chain also surface the chain metadata:
 ```
 
 Single-task tools (`get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, `update_task_context`) use a detail render that pretty-prints the full `context` blob (truncated at 2000 chars). `list_tasks` uses the concise list render which shows `Context keys: …` instead.
+
+`get_task` also shows attached task links when present:
+
+```
+  Links:
+    branch: delega-dev/delega-api phase-3-github — https://github.com/delega-dev/delega-api/tree/phase-3-github
+    pr: delega-dev/delega-api 42 — https://github.com/delega-dev/delega-api/pull/42
+```
 
 ### Delegation chains
 

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { DelegaApiError, DelegaClient, type ContextSource } from "./delega-client.js";
+import { DelegaApiError, DelegaClient, type ContextSource, type TaskLinkKind } from "./delega-client.js";
 import {
   formatAgent as formatAgentBase,
   formatChain,
@@ -102,6 +102,7 @@ function toolErrorResult(error: unknown) {
 
 const projectRefSchema = z.union([z.string(), z.number()]);
 const contextSourceSchema = z.enum(["human_stated", "agent_inferred", "agent_observed", "imported"]);
+const taskLinkKindSchema = z.enum(["branch", "commit", "pr", "url"]);
 
 function formatContextProvenance(provenance: unknown): string[] {
   if (!provenance || typeof provenance !== "object") return [];
@@ -194,7 +195,60 @@ server.tool(
   async ({ task_id }) => {
     try {
       const task = await client.getTask(task_id);
-      return { content: [{ type: "text", text: formatTaskDetail(task) }] };
+      const links = await client.listTaskLinks(task_id);
+      return { content: [{ type: "text", text: formatTaskDetail({ ...(task as Record<string, unknown>), links }) }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── task links ──
+
+server.tool(
+  "link_task",
+  "Attach a branch, commit, pull request, or URL link to a task. Use this when work in a repo, PR, or external artifact should travel with the task.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The task ID to link"),
+    kind: taskLinkKindSchema.describe("Link kind: branch, commit, pr, or url"),
+    repo: z.string().optional().describe("Repository slug in owner/name form, when applicable"),
+    ref: z.string().describe("Branch name, commit SHA, PR number, or URL reference"),
+    url: z.string().url().optional().describe("Optional URL for the link"),
+  },
+  async ({ task_id, kind, repo, ref, url }) => {
+    try {
+      const link = await client.linkTask(task_id, {
+        kind: kind as TaskLinkKind,
+        repo: repo ?? null,
+        ref,
+        url: url ?? null,
+      });
+      return { content: [{ type: "text", text: `Task #${task_id} linked:\n\n${JSON.stringify(link, null, 2)}` }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+server.tool(
+  "list_task_links",
+  "List branch, commit, pull request, and URL links attached to a task.",
+  {
+    task_id: z.union([z.string(), z.number()]).describe("The task ID whose links to list"),
+  },
+  async ({ task_id }) => {
+    try {
+      const links = await client.listTaskLinks(task_id);
+      if (!links.length) {
+        return { content: [{ type: "text", text: `Task #${task_id} has no links.` }] };
+      }
+      const lines = [`Links for task #${task_id}:`];
+      for (const link of links as Array<any>) {
+        const repo = link.repo ? `${link.repo} ` : "";
+        const url = link.url ? ` — ${link.url}` : "";
+        lines.push(`  ${link.kind}: ${repo}${link.ref}${url}`);
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }
@@ -843,7 +897,7 @@ server.tool(
 
 server.tool(
   "create_webhook",
-  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented, task.claimed, task.released, task.state_changed",
+  "Create a webhook to receive event notifications (admin only). Events: task.created, task.updated, task.completed, task.deleted, task.assigned, task.delegated, task.commented, task.claimed, task.released, task.state_changed, task.linked",
   {
     url: z.string().url().describe("HTTPS URL to receive webhook POST requests"),
     events: z
@@ -859,6 +913,7 @@ server.tool(
           "task.claimed",
           "task.released",
           "task.state_changed",
+          "task.linked",
         ]),
       )
       .min(1)
