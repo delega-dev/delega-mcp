@@ -18,7 +18,8 @@
     "dev": "tsx src/index.ts",
     "test": "node --import tsx --test test/*.test.ts",
     "prepublish-check": "bash scripts/prepublish-check.sh",
-    "prepublishOnly": "npm run prepublish-check && npm test && npm run build"
+    "prepublishOnly": "npm run prepublish-check && npm test && npm run build",
+    "version": "node scripts/sync-server-version.mjs && git add server.json"
   },
   "keywords": [
     "mcp",
