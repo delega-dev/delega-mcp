@@ -388,10 +388,14 @@ server.tool(
 
 server.tool(
   "claim_task",
-  "Claim the next available task from the queue for exclusive processing (work-queue semantics). Atomically picks the highest-priority claimable task — open, unclaimed, and unassigned or assigned to you. Returns the claimed task, or reports an empty queue. The claim is a lease (default 300 seconds): extend it with heartbeat_task while working, requeue with release_task, or finish with complete_task. Hosted API only.",
+  "Claim a task for exclusive processing (work-queue semantics). Without task_id, atomically picks the highest-priority claimable task from the queue — open, unclaimed, and unassigned or assigned to you. With task_id, claims that specific task (e.g. one you found via list_tasks, or after a write was rejected with 'claim it first'); fails with a conflict if it is completed, assigned to another agent, or claimed with a live lease. Returns the claimed task, or reports an empty queue. The claim is a lease (default 300 seconds): extend it with heartbeat_task while working, requeue with release_task, or finish with complete_task. Hosted API only.",
   {
-    project_id: projectRefSchema.optional().describe("Only claim tasks in this project"),
-    labels: z.array(z.string()).optional().describe("Only claim tasks carrying all of these labels"),
+    task_id: z
+      .union([z.string(), z.number()])
+      .optional()
+      .describe("Claim this specific task instead of the next from the queue"),
+    project_id: projectRefSchema.optional().describe("Only claim tasks in this project (queue claim only)"),
+    labels: z.array(z.string()).optional().describe("Only claim tasks carrying all of these labels (queue claim only)"),
     lease_seconds: z
       .number()
       .int()
@@ -400,9 +404,9 @@ server.tool(
       .optional()
       .describe("Lease duration in seconds (30-3600, default 300)"),
   },
-  async ({ project_id, labels, lease_seconds }) => {
+  async ({ task_id, project_id, labels, lease_seconds }) => {
     try {
-      const resp = await client.claimTask({ project_id, labels, lease_seconds });
+      const resp = await client.claimTask({ task_id, project_id, labels, lease_seconds });
       if (!resp.task) {
         return { content: [{ type: "text", text: "No claimable tasks in the queue." }] };
       }

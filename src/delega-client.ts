@@ -227,15 +227,25 @@ export class DelegaClient {
   }
 
   async claimTask(params: {
+    task_id?: string | number;
     project_id?: ProjectRef;
     labels?: string[];
     lease_seconds?: number;
   }) {
     this.assertHostedClaiming("claim_task");
     const body: Record<string, unknown> = {};
+    if (params.lease_seconds !== undefined) body.lease_seconds = params.lease_seconds;
+    // Targeted claim: take one specific task by id (409 if not claimable).
+    // project_id/labels filters only apply to the queue claim.
+    if (params.task_id !== undefined) {
+      return this.request<{ task: unknown | null }>(
+        "POST",
+        `${this.pathPrefix}/tasks/${params.task_id}/claim`,
+        body,
+      );
+    }
     if (params.project_id !== undefined) body.project_id = String(params.project_id);
     if (params.labels?.length) body.labels = params.labels;
-    if (params.lease_seconds !== undefined) body.lease_seconds = params.lease_seconds;
     return this.request<{ task: unknown | null }>(
       "POST",
       `${this.pathPrefix}/tasks/claim`,

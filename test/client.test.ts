@@ -174,6 +174,26 @@ test("DelegaClient.claimTask posts filters and returns the claimed task", async 
   }
 });
 
+test("DelegaClient.claimTask with task_id posts a targeted claim", async () => {
+  let capturedUrl = "";
+  let capturedBody: any = null;
+  const mock = mockFetch((url, init) => {
+    capturedUrl = String(url);
+    capturedBody = init?.body ? JSON.parse(String(init.body)) : null;
+    return jsonResponse({ task: { id: "t9", status: "claimed", lease_expires_at: "2026-06-10 12:00:00" } });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    // Queue-only filters must not leak into the targeted claim body
+    const result = await client.claimTask({ task_id: "t9", labels: ["bug"], lease_seconds: 120 });
+    assert.equal(capturedUrl, "https://api.delega.dev/v1/tasks/t9/claim");
+    assert.deepEqual(capturedBody, { lease_seconds: 120 });
+    assert.equal((result.task as any).id, "t9");
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient.claimTask surfaces an empty queue as task: null", async () => {
   const mock = mockFetch(() => jsonResponse({ task: null }));
   try {
