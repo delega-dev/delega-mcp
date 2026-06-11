@@ -321,6 +321,7 @@ export function formatAgent(a: any, options: { revealApiKey?: boolean } = {}): s
       lines.push(`  API Key Preview: ${maskApiKey(a.api_key)}`);
     }
   }
+  if (a.role) lines.push(`  Role: ${a.role}`);
   const permissions = normalizePermissions(a.permissions);
   if (permissions.length) lines.push(`  Permissions: ${permissions.join(", ")}`);
   if (a.active !== undefined) lines.push(`  Active: ${a.active ? "yes" : "no"}`);

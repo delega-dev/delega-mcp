@@ -74,7 +74,8 @@ Use `https://api.delega.dev` as the URL.
 | `list_projects` | List all projects |
 | `get_stats` | Get task statistics |
 | `list_agents` | List registered agents |
-| `register_agent` | Register a new agent (returns API key) |
+| `register_agent` | Register a new agent (returns API key), optionally with a role preset |
+| `set_agent_role` | Set an agent's role: `worker`, `coordinator`, or `admin` (admin key required) |
 | `delete_agent` | Delete an agent (refused if agent has active tasks) |
 | `list_webhooks` | List all webhooks (admin only) |
 | `create_webhook` | Create a webhook for event notifications, including `task.linked` (admin only) |

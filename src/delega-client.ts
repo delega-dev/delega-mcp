@@ -360,8 +360,12 @@ export class DelegaClient {
     return this.request<unknown[]>("GET", `${this.pathPrefix}/agents`);
   }
 
-  async registerAgent(data: { name: string; display_name?: string; description?: string; permissions?: string[] }) {
+  async registerAgent(data: { name: string; display_name?: string; description?: string; permissions?: string[]; role?: string }) {
     return this.request<unknown>("POST", `${this.pathPrefix}/agents`, data);
+  }
+
+  async setAgentRole(agentId: string | number, role: string) {
+    return this.request<unknown>("PUT", `${this.pathPrefix}/agents/${pathSegment(agentId)}`, { role });
   }
 
   async deleteAgent(agentId: string | number) {

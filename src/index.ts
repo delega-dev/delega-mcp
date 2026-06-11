@@ -832,7 +832,8 @@ server.tool(
     name: z.string().describe("Unique agent name (e.g. 'coordinator', 'researcher')"),
     display_name: z.string().optional().describe("Human-readable name (e.g. 'Research Bot')"),
     description: z.string().optional().describe("What this agent does"),
-    permissions: z.array(z.string()).optional().describe("Permission scopes, currently only ['tasks.read_all']"),
+    role: z.enum(["worker", "coordinator", "admin"]).optional().describe("Role preset: worker (own-task scope), coordinator (sees + can comment on all account tasks), admin (full account management). Mutually exclusive with permissions."),
+    permissions: z.array(z.string()).optional().describe("Fine-grained permission scopes ('tasks.read_all', 'tasks.comment_all'). Prefer role presets."),
   },
   async (params) => {
     try {
@@ -842,6 +843,27 @@ server.tool(
         : "\n\nAPI keys are redacted by default in MCP output. Set DELEGA_REVEAL_AGENT_KEYS=1 to reveal them.";
       return {
         content: [{ type: "text", text: `Agent registered:\n\n${formatAgent(agent)}${warning}` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── set_agent_role ──
+
+server.tool(
+  "set_agent_role",
+  "Set an agent's role (admin key required): worker (own-task scope), coordinator (sees + can comment on all account tasks), or admin (full account management). Sandbox agents graduate via the claim flow and cannot be assigned a role.",
+  {
+    agent_id: z.union([z.string(), z.number()]).describe("Agent ID to change"),
+    role: z.enum(["worker", "coordinator", "admin"]).describe("Role preset to apply"),
+  },
+  async ({ agent_id, role }) => {
+    try {
+      const agent = await client.setAgentRole(agent_id, role);
+      return {
+        content: [{ type: "text", text: `Role updated:\n\n${formatAgent(agent)}` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);
