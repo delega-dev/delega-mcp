@@ -33,7 +33,7 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DELEGA_API_URL` | `http://127.0.0.1:18890` | Delega API endpoint. Set to `https://api.delega.dev` (the hosted API); the local default is an advanced override for custom endpoints. |
+| `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. Defaults to the hosted API; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
 | `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests |
 | `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `create_agent` or `list_agents` responses. |
 

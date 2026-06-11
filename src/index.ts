@@ -550,7 +550,7 @@ server.tool(
 
 server.tool(
   "get_usage",
-  "Get quota and rate-limit information for the current plan. Hosted API only (api.delega.dev) — self-hosted deployments will receive a clear error.",
+  "Get quota and rate-limit information for the current plan. Hosted API only (api.delega.dev) — custom endpoints receive a clear error.",
   {},
   async () => {
     try {

@@ -1,4 +1,4 @@
-const DEFAULT_BASE_URL = "http://127.0.0.1:18890";
+const DEFAULT_BASE_URL = "https://api.delega.dev";
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
 type ProjectRef = string | number;
 export type ContextSource = "human_stated" | "agent_inferred" | "agent_observed" | "imported";
@@ -45,7 +45,7 @@ export class DelegaClient {
   constructor(baseUrl?: string, agentKey?: string) {
     this.baseUrl = normalizeBaseUrl(baseUrl || DEFAULT_BASE_URL);
     this.agentKey = agentKey;
-    // Hosted API (api.delega.dev) uses /v1/ prefix, self-hosted uses /api/
+    // Hosted API (api.delega.dev) uses /v1/ prefix, custom /api-style endpoints use /api/
     this.pathPrefix = new URL(this.baseUrl).hostname === "api.delega.dev" ? "/v1" : "/api";
   }
 
@@ -197,7 +197,7 @@ export class DelegaClient {
       "GET",
       `${this.pathPrefix}/tasks/${pathSegment(taskId)}/chain`,
     );
-    // Hosted returns { root_id, chain, ... }; self-hosted returns { root: Task, chain, ... }.
+    // Hosted returns { root_id, chain, ... }; custom /api endpoints return { root: Task, chain, ... }.
     // Normalize so the formatter only handles one shape.
     if (resp && typeof resp === "object") {
       if (resp.root && typeof resp.root === "object" && resp.root_id === undefined) {
@@ -253,7 +253,7 @@ export class DelegaClient {
   async getUsage() {
     if (this.pathPrefix !== "/v1") {
       throw new Error(
-        "get_usage is only available on the hosted Delega API (api.delega.dev). Self-hosted deployments do not expose a usage endpoint.",
+        "get_usage is only available on the Delega API (api.delega.dev). Custom endpoints do not expose a usage endpoint.",
       );
     }
     return this.request<unknown>("GET", `${this.pathPrefix}/usage`);
@@ -264,7 +264,7 @@ export class DelegaClient {
   private assertHostedClaiming(operation: string): void {
     if (this.pathPrefix !== "/v1") {
       throw new Error(
-        `${operation} is only available on the hosted Delega API (api.delega.dev). Self-hosted deployments do not expose task-claiming endpoints yet.`,
+        `${operation} is only available on the Delega API (api.delega.dev). Custom endpoints do not expose task-claiming endpoints.`,
       );
     }
   }

@@ -74,7 +74,7 @@ test("DelegaClient.getUsage gates client-side on self-hosted before any HTTP cal
     const client = new DelegaClient("http://127.0.0.1:18890", "dlg_test_key");
     await assert.rejects(
       () => client.getUsage(),
-      /get_usage is only available on the hosted Delega API/,
+      /get_usage is only available on the Delega API/,
     );
     assert.equal(mock.calls, 0, "fetch should NOT be called when gate triggers");
   } finally {
@@ -333,9 +333,9 @@ test("DelegaClient.claimTask surfaces an empty queue as task: null", async () =>
 
 test("DelegaClient claiming methods reject self-hosted base URLs", async () => {
   const client = new DelegaClient("http://127.0.0.1:18890", "dlg_test_key");
-  await assert.rejects(() => client.claimTask({}), /hosted Delega API/);
-  await assert.rejects(() => client.heartbeatTask("t1"), /hosted Delega API/);
-  await assert.rejects(() => client.releaseTask("t1"), /hosted Delega API/);
+  await assert.rejects(() => client.claimTask({}), /available on the Delega API/);
+  await assert.rejects(() => client.heartbeatTask("t1"), /available on the Delega API/);
+  await assert.rejects(() => client.releaseTask("t1"), /available on the Delega API/);
 });
 
 test("DelegaClient.heartbeatTask posts lease_seconds to the heartbeat endpoint", async () => {
@@ -406,7 +406,7 @@ test("DelegaClient.setTaskState omits detail when not provided and rejects self-
     mock.restore();
   }
   const selfHosted = new DelegaClient("http://127.0.0.1:18890", "dlg_test_key");
-  await assert.rejects(() => selfHosted.setTaskState("t1", "working"), /hosted Delega API/);
+  await assert.rejects(() => selfHosted.setTaskState("t1", "working"), /available on the Delega API/);
 });
 
 test("DelegaClient.releaseTask posts to the release endpoint", async () => {
