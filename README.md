@@ -59,12 +59,15 @@ Use `https://api.delega.dev` as the URL.
 | `assign_task` | Assign a task to an agent (or pass `null` to unassign) |
 | `delegate_task` | Delegate a task: create a child task linked to a parent (parent status flips to `delegated`). Use this for multi-agent handoffs — `assign_task` does not create a delegation chain. |
 | `get_task_chain` | Return the full delegation chain for a task (root + descendants, sorted by depth) |
-| `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace) |
+| `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace), recording provenance source |
+| `get_task_context` | Read a task's persistent context blob, optionally with per-key provenance |
+| `get_context_history` | Read the append-only provenance ledger for a task's context |
 | `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (TF-IDF + cosine similarity). Call before `create_task` to avoid redundant work. |
 | `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); custom endpoints receive a clear error. |
 | `claim_task` | Claim the next available task from the queue for exclusive processing (work-queue semantics). Lease-based: default 300s, configurable 30-3600. Returns the task or reports an empty queue. **Hosted API only.** |
 | `heartbeat_task` | Extend the lease on a claimed task. Call periodically while working so the claim isn't reclaimed. **Hosted API only.** |
 | `release_task` | Release a claimed task back to the queue without completing it. **Hosted API only.** |
+| `set_task_state` | Report `working`, `waiting_input`, or `errored` on a claimed task without extending the lease. **Hosted API only.** |
 | `complete_task` | Mark a task as completed |
 | `delete_task` | Delete a task permanently |
 | `add_comment` | Add a comment to a task |
