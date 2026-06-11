@@ -2,7 +2,7 @@
 
 MCP server for [Delega](https://delega.dev) — the task handoff layer for AI agents.
 
-Connect any MCP-compatible client (Claude Code, Cursor, Codex, etc.) to your Delega instance and manage tasks, projects, and agents through natural language.
+Connect any MCP-compatible client (Claude Code, Cursor, Codex, etc.) to Delega and manage tasks, projects, and agents through natural language.
 
 ## Install
 
@@ -21,7 +21,7 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
       "command": "npx",
       "args": ["-y", "@delega-dev/mcp"],
       "env": {
-        "DELEGA_API_URL": "http://127.0.0.1:18890",
+        "DELEGA_API_URL": "https://api.delega.dev",
         "DELEGA_AGENT_KEY": "dlg_your_agent_key_here"
       }
     }
@@ -33,11 +33,11 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DELEGA_API_URL` | `http://127.0.0.1:18890` | Delega API endpoint |
+| `DELEGA_API_URL` | `http://127.0.0.1:18890` | Delega API endpoint. Set to `https://api.delega.dev` (the hosted API); the local default is an advanced override for custom endpoints. |
 | `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests |
 | `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `create_agent` or `list_agents` responses. |
 
-For the hosted tier, use `https://api.delega.dev` as the URL.
+Use `https://api.delega.dev` as the URL.
 
 ## Security Notes
 
@@ -61,7 +61,7 @@ For the hosted tier, use `https://api.delega.dev` as the URL.
 | `get_task_chain` | Return the full delegation chain for a task (root + descendants, sorted by depth) |
 | `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace) |
 | `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (TF-IDF + cosine similarity). Call before `create_task` to avoid redundant work. |
-| `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); self-hosted deployments receive a clear error. |
+| `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); custom endpoints receive a clear error. |
 | `claim_task` | Claim the next available task from the queue for exclusive processing (work-queue semantics). Lease-based: default 300s, configurable 30-3600. Returns the task or reports an empty queue. **Hosted API only.** |
 | `heartbeat_task` | Extend the lease on a claimed task. Call periodically while working so the claim isn't reclaimed. **Hosted API only.** |
 | `release_task` | Release a claimed task back to the queue without completing it. **Hosted API only.** |
@@ -93,7 +93,7 @@ Task-returning tools (`list_tasks`, `get_task`, `create_task`, `update_task`, `a
   Completed: no
 ```
 
-`Assigned to` / `Created by` / `Completed by` lines are emitted only when the underlying field is populated. Self-hosted Delega returns a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` tier returns the raw agent ID so it renders as `#<id>`.
+`Assigned to` / `Created by` / `Completed by` lines are emitted only when the underlying field is populated. Custom `/api`-style endpoints return a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` API returns the raw agent ID so it renders as `#<id>`.
 
 Tasks that are part of a delegation chain also surface the chain metadata:
 
@@ -132,11 +132,9 @@ Delegation chain (root #abc, depth 2, 2/4 complete):
 
 Nodes are sorted by depth then creation order (matching the API's response ordering).
 
-## Self-Hosted vs Hosted
+## Hosted API
 
-**Self-hosted (free):** Run your own Delega instance, point `DELEGA_API_URL` at it.
-
-**Hosted:** Use `https://api.delega.dev` — free up to 1,000 tasks/month.
+Delega is a hosted service. Point `DELEGA_API_URL` at `https://api.delega.dev` — free up to 1,000 tasks/month.
 
 ## Links
 

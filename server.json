@@ -26,7 +26,7 @@
         },
         {
           "name": "DELEGA_API_URL",
-          "description": "Delega API endpoint. Defaults to http://127.0.0.1:18890 for self-hosted. Use https://api.delega.dev for hosted tier.",
+          "description": "Delega API endpoint. Set to https://api.delega.dev (the hosted API). Defaults to http://127.0.0.1:18890 as an advanced override for custom endpoints.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
