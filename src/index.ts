@@ -159,7 +159,7 @@ const server = new McpServer({
 
 server.tool(
   "list_tasks",
-  "List tasks from Delega, scoped to tasks this agent created, was assigned, or completed. Optionally filtered by project, label, due date, or completion status. To resume work at the start of a session, call with completed:false to see your open tasks, then use get_task_context on each to recover prior decisions and state instead of starting from zero.",
+  "List tasks from Delega. Visibility depends on your role: workers see tasks they created, were assigned, completed, or claimed; coordinators and admins see all account tasks — including other agents' work, so act only on tasks assigned to you or unowned ones you claim, and coordinate on teammates' tasks via add_comment. Optionally filtered by project, label, due date, or completion status. To resume work at the start of a session, call with completed:false, then use get_task_context on your tasks to recover prior decisions and state instead of starting from zero.",
   {
     project_id: projectRefSchema.optional().describe("Filter by project ID"),
     label: z.string().optional().describe("Filter by label name"),
@@ -807,7 +807,7 @@ server.tool(
 
 server.tool(
   "list_agents",
-  "List all registered agents in Delega",
+  "List all registered agents in Delega. Admin keys get the full view; coordinators get a read-only directory (name, role, activity) for resolving agent IDs on tasks.",
   {},
   async () => {
     try {
