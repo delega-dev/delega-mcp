@@ -225,6 +225,31 @@ export function formatTaskDetail(t: any): string {
   return lines.join("\n");
 }
 
+export function formatRecurrence(r: any): string {
+  const lines: string[] = [];
+  lines.push(`[#${r.id}] ${r.content}`);
+  if (r.description) lines.push(`  Description: ${r.description}`);
+  const labels = parseLabels(r.labels);
+  if (labels.length) lines.push(`  Labels: ${labels.join(", ")}`);
+  if (r.priority) lines.push(`  Priority: ${r.priority}`);
+  const parts = [`${r.rule_type ?? "unknown"}`];
+  if (r.interval && r.interval !== 1) parts.push(`every ${r.interval}`);
+  if (r.anchor_month) parts.push(`month ${r.anchor_month}`);
+  if (r.anchor_day) parts.push(`day ${r.anchor_day}`);
+  if (r.anchor_weekday !== undefined && r.anchor_weekday !== null) parts.push(`weekday ${r.anchor_weekday}`);
+  lines.push(`  Rule: ${parts.join(", ")}`);
+  if (r.timezone) lines.push(`  Timezone: ${r.timezone}`);
+  if (r.next_due_at) lines.push(`  Next due: ${r.next_due_at}`);
+  if (r.last_spawned_at) lines.push(`  Last spawned: ${r.last_spawned_at}`);
+  lines.push(`  Active: ${r.active ? "yes" : "no"}`);
+  lines.push(`  Skip if open: ${r.skip_if_open ? "yes" : "no"}`);
+  const assignee = formatAgentRef(r.assigned_to_agent, r.assigned_to_agent_id);
+  if (assignee) lines.push(`  Assigned to: ${assignee}`);
+  const creator = formatAgentRef(r.created_by_agent, r.created_by_agent_id);
+  if (creator) lines.push(`  Created by: ${creator}`);
+  return lines.join("\n");
+}
+
 // Render a task node inside a delegation-chain tree.
 function chainNodeStatus(task: any): string {
   if (typeof task.status === "string" && task.status !== "") {

@@ -236,6 +236,72 @@ test("DelegaClient task link methods call hosted link endpoints", async () => {
   }
 });
 
+test("DelegaClient recurrence methods call hosted recurrence endpoints", async () => {
+  const captured: Array<{ url: string; method?: string; body?: any }> = [];
+  const mock = mockFetch((url, init) => {
+    captured.push({
+      url: String(url),
+      method: init?.method,
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    if (init?.method === "GET") return jsonResponse([]);
+    if (init?.method === "DELETE") return jsonResponse({ ok: true });
+    return jsonResponse({
+      id: "rec1",
+      content: "Replace furnace filter",
+      rule_type: "monthly",
+      interval: 1,
+      timezone: "America/Chicago",
+      anchor_day: 1,
+      next_due_at: "2026-07-01T05:00:00.000Z",
+    });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.listRecurrences();
+    await client.createRecurrence({
+      content: "Replace furnace filter",
+      rule_type: "monthly",
+      interval: 1,
+      timezone: "America/Chicago",
+      anchor_day: 1,
+    });
+    await client.updateRecurrence("rec/with?query=true", { active: false });
+    await client.deleteRecurrence("rec/with?query=true");
+
+    assert.deepEqual(captured, [
+      {
+        url: "https://api.delega.dev/v1/recurrences",
+        method: "GET",
+        body: undefined,
+      },
+      {
+        url: "https://api.delega.dev/v1/recurrences",
+        method: "POST",
+        body: {
+          content: "Replace furnace filter",
+          rule_type: "monthly",
+          interval: 1,
+          timezone: "America/Chicago",
+          anchor_day: 1,
+        },
+      },
+      {
+        url: "https://api.delega.dev/v1/recurrences/rec%2Fwith%3Fquery%3Dtrue",
+        method: "PUT",
+        body: { active: false },
+      },
+      {
+        url: "https://api.delega.dev/v1/recurrences/rec%2Fwith%3Fquery%3Dtrue",
+        method: "DELETE",
+        body: undefined,
+      },
+    ]);
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient encodes path parameters before building URLs", async () => {
   const captured: string[] = [];
   const mock = mockFetch((url) => {

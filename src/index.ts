@@ -2,12 +2,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { DelegaApiError, DelegaClient, type ContextSource, type TaskLinkKind } from "./delega-client.js";
+import { DelegaApiError, DelegaClient, type ContextSource, type RecurrenceRuleType, type TaskLinkKind } from "./delega-client.js";
 import {
   formatAgent as formatAgentBase,
   formatChain,
   formatDedupResult,
   formatProject,
+  formatRecurrence,
   formatTask,
   formatTaskDetail,
   formatUsage,
@@ -103,6 +104,7 @@ function toolErrorResult(error: unknown) {
 const projectRefSchema = z.union([z.string(), z.number()]);
 const contextSourceSchema = z.enum(["human_stated", "agent_inferred", "agent_observed", "imported"]);
 const taskLinkKindSchema = z.enum(["branch", "commit", "pr", "url"]);
+const recurrenceRuleTypeSchema = z.enum(["daily", "weekly", "monthly", "yearly"]);
 
 function formatContextProvenance(provenance: unknown): string[] {
   if (!provenance || typeof provenance !== "object") return [];
@@ -283,6 +285,107 @@ server.tool(
       return {
         content: [{ type: "text", text: `Task created:\n\n${formatTaskDetail(task)}` }],
       };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── recurrences ──
+
+server.tool(
+  "list_recurrences",
+  "List recurring task templates. Recurrences spawn normal task instances on schedule; completing an instance does not delete the schedule.",
+  {},
+  async () => {
+    try {
+      const recurrences = await client.listRecurrences();
+      if (!recurrences.length) {
+        return { content: [{ type: "text", text: "No recurrences found." }] };
+      }
+      return { content: [{ type: "text", text: recurrences.map(formatRecurrence).join("\n\n") }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+server.tool(
+  "create_recurring_task",
+  "Create a recurring task template. The hosted scheduler spawns normal task instances from this template and links them with source_recurrence_id.",
+  {
+    content: z.string().describe("Task title/content for spawned instances"),
+    description: z.string().optional().describe("Optional task description for spawned instances"),
+    project_id: projectRefSchema.optional().describe("Optional project ID"),
+    labels: z.array(z.string()).optional().describe("Labels for spawned tasks"),
+    priority: z.number().int().min(1).max(4).optional().describe("Priority 1-4"),
+    assigned_to_agent_id: z.union([z.string(), z.number(), z.null()]).optional().describe("Optional assignee for spawned tasks"),
+    rule_type: recurrenceRuleTypeSchema.describe("Recurrence rule type"),
+    interval: z.number().int().min(1).optional().describe("Rule interval, default 1"),
+    timezone: z.string().optional().describe("IANA timezone, e.g. America/Chicago"),
+    anchor_day: z.number().int().min(1).max(31).optional().describe("Day of month for monthly/yearly rules"),
+    anchor_month: z.number().int().min(1).max(12).optional().describe("Month for yearly rules"),
+    anchor_weekday: z.number().int().min(0).max(6).optional().describe("Weekday for weekly rules, Sunday=0"),
+    next_due_at: z.string().optional().describe("Optional ISO timestamp for first due occurrence"),
+    skip_if_open: z.boolean().optional().describe("Skip spawning and roll forward while a prior instance is open"),
+  },
+  async ({ rule_type, ...data }) => {
+    try {
+      const recurrence = await client.createRecurrence({
+        ...data,
+        rule_type: rule_type as RecurrenceRuleType,
+      });
+      return { content: [{ type: "text", text: `Recurring task created:\n\n${formatRecurrence(recurrence)}` }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+server.tool(
+  "update_recurrence",
+  "Update a recurring task template, including pausing/resuming with active=false/true.",
+  {
+    recurrence_id: z.union([z.string(), z.number()]).describe("The recurrence ID to update"),
+    content: z.string().optional().describe("Task title/content for future spawned instances"),
+    description: z.string().nullable().optional().describe("Optional task description"),
+    project_id: z.union([projectRefSchema, z.null()]).optional().describe("Optional project ID, or null to clear"),
+    labels: z.array(z.string()).optional().describe("Labels for spawned tasks"),
+    priority: z.number().int().min(1).max(4).optional().describe("Priority 1-4"),
+    assigned_to_agent_id: z.union([z.string(), z.number(), z.null()]).optional().describe("Optional assignee, or null to clear"),
+    rule_type: recurrenceRuleTypeSchema.optional().describe("Recurrence rule type"),
+    interval: z.number().int().min(1).optional().describe("Rule interval"),
+    timezone: z.string().optional().describe("IANA timezone"),
+    anchor_day: z.number().int().min(1).max(31).nullable().optional().describe("Day of month for monthly/yearly rules"),
+    anchor_month: z.number().int().min(1).max(12).nullable().optional().describe("Month for yearly rules"),
+    anchor_weekday: z.number().int().min(0).max(6).nullable().optional().describe("Weekday for weekly rules, Sunday=0"),
+    next_due_at: z.string().nullable().optional().describe("ISO timestamp for next due occurrence"),
+    active: z.boolean().optional().describe("Whether the recurrence is active"),
+    skip_if_open: z.boolean().optional().describe("Skip spawning while a prior instance is open"),
+  },
+  async ({ recurrence_id, rule_type, ...updates }) => {
+    try {
+      const recurrence = await client.updateRecurrence(recurrence_id, {
+        ...updates,
+        ...(rule_type ? { rule_type: rule_type as RecurrenceRuleType } : {}),
+      });
+      return { content: [{ type: "text", text: `Recurrence updated:\n\n${formatRecurrence(recurrence)}` }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+server.tool(
+  "delete_recurrence",
+  "Delete a recurring task template. Existing spawned task instances remain as normal tasks.",
+  {
+    recurrence_id: z.union([z.string(), z.number()]).describe("The recurrence ID to delete"),
+  },
+  async ({ recurrence_id }) => {
+    try {
+      await client.deleteRecurrence(recurrence_id);
+      return { content: [{ type: "text", text: `Recurrence #${recurrence_id} deleted.` }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }

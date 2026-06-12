@@ -3,12 +3,31 @@ const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
 type ProjectRef = string | number;
 export type ContextSource = "human_stated" | "agent_inferred" | "agent_observed" | "imported";
 export type TaskLinkKind = "branch" | "commit" | "pr" | "url";
+export type RecurrenceRuleType = "daily" | "weekly" | "monthly" | "yearly";
 
 export interface TaskLinkInput {
   kind: TaskLinkKind;
   repo?: string | null;
   ref: string;
   url?: string | null;
+}
+
+export interface RecurrenceInput {
+  content?: string;
+  description?: string | null;
+  project_id?: ProjectRef | null;
+  labels?: string[];
+  priority?: number;
+  assigned_to_agent_id?: string | number | null;
+  rule_type?: RecurrenceRuleType;
+  interval?: number;
+  timezone?: string;
+  anchor_day?: number | null;
+  anchor_month?: number | null;
+  anchor_weekday?: number | null;
+  next_due_at?: string | null;
+  active?: boolean;
+  skip_if_open?: boolean;
 }
 
 export class DelegaApiError extends Error {
@@ -163,6 +182,24 @@ export class DelegaClient {
 
   async deleteTask(taskId: string | number) {
     return this.request<unknown>("DELETE", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`);
+  }
+
+  // ── Recurrences ──
+
+  async listRecurrences() {
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/recurrences`);
+  }
+
+  async createRecurrence(data: Required<Pick<RecurrenceInput, "content" | "rule_type">> & RecurrenceInput) {
+    return this.request<unknown>("POST", `${this.pathPrefix}/recurrences`, data);
+  }
+
+  async updateRecurrence(recurrenceId: string | number, data: RecurrenceInput) {
+    return this.request<unknown>("PUT", `${this.pathPrefix}/recurrences/${pathSegment(recurrenceId)}`, data);
+  }
+
+  async deleteRecurrence(recurrenceId: string | number) {
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/recurrences/${pathSegment(recurrenceId)}`);
   }
 
   // ── Delegation / coordination ──
