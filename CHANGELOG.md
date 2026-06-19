@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-06-12
+
+### Added
+- Recurring task template support. New tools: `list_recurrences`,
+  `create_recurring_task`, `update_recurrence`, and `delete_recurrence`.
+  Recurrence rules support `daily`, `weekly`, `monthly`, and `yearly`
+  schedules with interval, timezone, anchor fields, `next_due_at`, assignee,
+  active state, and `skip_if_open` options. Tool count 30 -> 34.
+
+## [1.12.1] - 2026-06-11
+
+### Changed
+- Updated tool descriptions for `list_tasks` and `list_agents` to reflect
+  role-aware visibility: workers see their own task scope, while coordinators
+  and admins can see account-wide work and should coordinate on sibling agents'
+  tasks via comments.
+
+## [1.12.0] - 2026-06-11
+
+### Added
+- Agent role presets. `register_agent` accepts `role` (`worker`,
+  `coordinator`, or `admin`), `set_agent_role` updates an existing agent's
+  role with an admin key, and agent formatter output includes `Role:` when
+  present. Tool count 29 -> 30.
+
+## [1.11.0] - 2026-06-11
+
+### Changed
+- Bumped the MCP SDK to `^1.29.0`.
+- Completed the README tool table for the MCP tools available at the time.
+
+## [1.10.0] - 2026-06-11
+
+### Changed
+- Defaulted `DELEGA_API_URL` to the hosted API at `https://api.delega.dev`.
+  Hosted requests use the `/v1` API prefix; custom endpoints continue to use
+  `/api`.
+- Removed self-hosted setup guidance from the README and server manifest.
+
 ## [1.9.1] - 2026-06-10
 
 ### Fixed
