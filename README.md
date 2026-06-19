@@ -22,7 +22,7 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
       "args": ["-y", "@delega-dev/mcp"],
       "env": {
         "DELEGA_API_URL": "https://api.delega.dev",
-        "DELEGA_API_KEY": "dlg_your_agent_key_here"
+        "DELEGA_AGENT_KEY": "dlg_your_agent_key_here"
       }
     }
   }
@@ -34,8 +34,8 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. Defaults to the hosted API; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
-| `DELEGA_API_KEY` | (none) | Agent API key for authenticated requests. Preferred for new installs so the MCP, CLI, and SDK can share one env var. |
-| `DELEGA_AGENT_KEY` | (none) | Backward-compatible alias for `DELEGA_API_KEY`; if both are set, `DELEGA_AGENT_KEY` wins. |
+| `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests. Preferred for MCP configs; if both key env vars are set, this one wins. |
+| `DELEGA_API_KEY` | (none) | Fallback alias accepted so the MCP, CLI, and SDK can share one env var when needed. |
 | `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `register_agent` or `list_agents` responses. |
 
 Use `https://api.delega.dev` as the URL.
