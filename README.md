@@ -34,8 +34,9 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. Defaults to the hosted API; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
-| `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests |
-| `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `create_agent` or `list_agents` responses. |
+| `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests. Preferred for MCP configs; if both key env vars are set, this one wins. |
+| `DELEGA_API_KEY` | (none) | Fallback alias accepted so the MCP, CLI, and SDK can share one env var when needed. |
+| `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `register_agent` or `list_agents` responses. |
 
 Use `https://api.delega.dev` as the URL.
 
@@ -44,7 +45,7 @@ Use `https://api.delega.dev` as the URL.
 - Non-local `DELEGA_API_URL` values must use `https://`.
 - Agent keys are passed through environment variables rather than command-line arguments, which avoids process-list leakage.
 - MCP tool output redacts full agent API keys by default.
-- **Do not set `DELEGA_REVEAL_AGENT_KEYS=1` in production.** This flag exists for initial setup only. In production, a prompt-injected agent could exfiltrate keys from `create_agent` or `list_agents` tool output. Keys are returned once at creation time; use `rotate_agent_key` if you need a new one.
+- **Do not set `DELEGA_REVEAL_AGENT_KEYS=1` in production.** This flag exists for initial setup only. In production, a prompt-injected agent could exfiltrate keys from `register_agent` or `list_agents` tool output. Keys are returned once at creation time; register a replacement agent if you need a new key.
 
 ## Tools
 
@@ -55,6 +56,10 @@ Use `https://api.delega.dev` as the URL.
 | `link_task` | Attach a branch, commit, PR, or URL link to a task |
 | `list_task_links` | List branch, commit, PR, and URL links attached to a task |
 | `create_task` | Create a new task |
+| `list_recurrences` | List recurring task templates |
+| `create_recurring_task` | Create a recurring task template (`daily`, `weekly`, `monthly`, or `yearly`) |
+| `update_recurrence` | Update a recurring task template, including pausing/resuming with `active` |
+| `delete_recurrence` | Delete a recurring task template; existing spawned task instances remain |
 | `update_task` | Update task fields (incl. `assigned_to_agent_id`) |
 | `assign_task` | Assign a task to an agent (or pass `null` to unassign) |
 | `delegate_task` | Delegate a task: create a child task linked to a parent (parent status flips to `delegated`). Use this for multi-agent handoffs — `assign_task` does not create a delegation chain. |
@@ -135,6 +140,22 @@ Delegation chain (root #abc, depth 2, 2/4 complete):
 ```
 
 Nodes are sorted by depth then creation order (matching the API's response ordering).
+
+### Recurring tasks
+
+Recurring task tools manage templates. The hosted scheduler creates normal task instances from those templates; completing an instance does not delete or pause the recurrence.
+
+`list_recurrences`, `create_recurring_task`, and `update_recurrence` render templates with their rule, next due timestamp, active state, skip-if-open behavior, and available agent metadata:
+
+```
+[#weekly-report] Weekly report
+  Rule: weekly, weekday 1
+  Timezone: America/Chicago
+  Next due: 2026-06-22T14:00:00Z
+  Active: yes
+  Skip if open: yes
+  Assigned to: Reporter (#7)
+```
 
 ## Hosted API
 
