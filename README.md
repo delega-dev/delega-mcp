@@ -69,8 +69,8 @@ Use `https://api.delega.dev` as the URL.
 | `get_context_history` | Read the append-only provenance ledger for a task's context |
 | `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (TF-IDF + cosine similarity). Call before `create_task` to avoid redundant work. |
 | `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); custom endpoints receive a clear error. |
-| `claim_task` | Claim the next available task from the queue for exclusive processing (work-queue semantics). Lease-based: default 300s, configurable 30-3600. Returns the task or reports an empty queue. **Hosted API only.** |
-| `heartbeat_task` | Extend the lease on a claimed task. Call periodically while working so the claim isn't reclaimed. **Hosted API only.** |
+| `claim_task` | Claim a task for exclusive processing (work-queue semantics). Without `task_id`, claims the next available task from the queue; with `task_id`, targets a specific task. Lease-based: default 300s, configurable 30-3600. Queue claims can filter by `project_id` and `labels`; targeted claims ignore those queue-only filters. **Hosted API only.** |
+| `heartbeat_task` | Extend the lease on a claimed task. Optionally report `working`, `waiting_input`, or `errored` plus detail while extending the lease. **Hosted API only.** |
 | `release_task` | Release a claimed task back to the queue without completing it. **Hosted API only.** |
 | `set_task_state` | Report `working`, `waiting_input`, or `errored` on a claimed task without extending the lease. **Hosted API only.** |
 | `complete_task` | Mark a task as completed |
@@ -83,12 +83,12 @@ Use `https://api.delega.dev` as the URL.
 | `set_agent_role` | Set an agent's role: `worker`, `coordinator`, or `admin` (admin key required) |
 | `delete_agent` | Delete an agent (refused if agent has active tasks) |
 | `list_webhooks` | List all webhooks (admin only) |
-| `create_webhook` | Create a webhook for event notifications, including `task.linked` (admin only) |
+| `create_webhook` | Create a webhook for event notifications: `task.created`, `task.updated`, `task.completed`, `task.deleted`, `task.assigned`, `task.delegated`, `task.commented`, `task.claimed`, `task.released`, `task.state_changed`, and `task.linked` (admin only) |
 | `delete_webhook` | Delete a webhook by ID (admin only) |
 
 ### Task output format
 
-Task-returning tools (`list_tasks`, `get_task`, `create_task`, `update_task`, `assign_task`) render each task with assignment metadata when available:
+Task list and detail outputs (`list_tasks`, `get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, and successful `claim_task`) render each task with assignment metadata when available:
 
 ```
 [#42] Ship the release
@@ -102,7 +102,7 @@ Task-returning tools (`list_tasks`, `get_task`, `create_task`, `update_task`, `a
   Completed: no
 ```
 
-`Assigned to` / `Created by` / `Completed by` lines are emitted only when the underlying field is populated. Custom `/api`-style endpoints return a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` API returns the raw agent ID so it renders as `#<id>`.
+`Assigned to` / `Created by` / `Accountable` / `Completed by` lines are emitted only when the underlying field is populated. `Completed by` is shown only for completed tasks. Custom `/api`-style endpoints return a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` API returns the raw agent ID so it renders as `#<id>`.
 
 Tasks that are part of a delegation chain also surface the chain metadata:
 
@@ -117,7 +117,9 @@ Tasks that are part of a delegation chain also surface the chain metadata:
   Context keys: step, findings (2)
 ```
 
-Single-task tools (`get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, `update_task_context`) use a detail render that pretty-prints the full `context` blob (truncated at 2000 chars). `list_tasks` uses the concise list render which shows `Context keys: …` instead.
+Single-task tools (`get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, and successful `claim_task`) use a detail render that pretty-prints the full `context` blob (truncated at 2000 chars). `update_task_context` shows the updated task detail when the API returns a task; otherwise it prints the merged context and version. `list_tasks` uses the concise list render which shows `Context keys: …` instead.
+
+Claimed tasks can include a session state inline with `Status`, for example `Status: claimed (waiting_input — "needs prod API key")`. `heartbeat_task` can set that state while extending the lease; `set_task_state` changes it without extending the lease.
 
 `get_task` also shows attached task links when present:
 
