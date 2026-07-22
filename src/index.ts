@@ -12,6 +12,7 @@ import {
   formatTask,
   formatTaskDetail,
   formatUsage,
+  maskApiKey,
 } from "./formatters.js";
 
 // DELEGA_AGENT_KEY authenticates as a specific agent (tracks task ownership).
@@ -52,11 +53,21 @@ function apiErrorDetail(error: DelegaApiError): string | null {
 function sanitizeToolError(error: unknown): string {
   if (error instanceof DelegaApiError) {
     if (error.responseBody) {
-      console.error("Delega API error response:", {
-        status: error.status,
-        statusText: error.statusText,
-        body: error.responseBody,
-      });
+      // Log status only by default; the raw response body can echo submitted
+      // fields or internal detail into the host's stderr logs. Gate the full
+      // body behind an opt-in debug flag.
+      if (process.env.DELEGA_DEBUG === "1") {
+        console.error("Delega API error response:", {
+          status: error.status,
+          statusText: error.statusText,
+          body: error.responseBody,
+        });
+      } else {
+        console.error("Delega API error response:", {
+          status: error.status,
+          statusText: error.statusText,
+        });
+      }
     }
 
     const detail = apiErrorDetail(error);
@@ -1055,8 +1066,18 @@ server.tool(
         `  Events: ${Array.isArray(w.events) ? w.events.join(", ") : w.events}`,
       ];
       if (w.secret) {
-        lines.push(`  Secret: ${w.secret}`);
-        lines.push(`\n⚠️ Save the secret — it won't be shown again. Use it to verify webhook signatures.`);
+        // The signing secret authenticates every future webhook payload, so by
+        // default it is masked — the full value would otherwise be persisted in
+        // the LLM transcript and any model-provider logs, where anyone with log
+        // access could read it and forge signatures. Reveal in full only when
+        // the operator explicitly opts in, mirroring DELEGA_REVEAL_AGENT_KEYS.
+        if (process.env.DELEGA_REVEAL_WEBHOOK_SECRETS === "1") {
+          lines.push(`  Secret: ${w.secret}`);
+          lines.push(`\n⚠️ Save the secret — it won't be shown again. Use it to verify webhook signatures.`);
+        } else {
+          lines.push(`  Secret: ${maskApiKey(w.secret)} (masked)`);
+          lines.push(`\n⚠️ The signing secret is shown only once and is masked here. Re-run with DELEGA_REVEAL_WEBHOOK_SECRETS=1 to print it in full, then store it securely to verify webhook signatures.`);
+        }
       }
       return { content: [{ type: "text", text: lines.join("\n") }] };
     } catch (error: unknown) {

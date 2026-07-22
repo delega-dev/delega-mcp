@@ -6,7 +6,17 @@ import {
   formatTask,
   formatTaskDetail,
   formatUsage,
+  maskApiKey,
 } from "../src/formatters.js";
+
+test("maskApiKey hides the middle of a secret and never echoes it whole", () => {
+  const secret = "whsec_abcdefghijklmnopqrstuvwxyz0123456789";
+  const masked = maskApiKey(secret);
+  assert.equal(masked, "whsec_ab...6789");
+  assert.ok(!masked.includes(secret));
+  // Short values (nothing meaningful to hide) pass through unchanged.
+  assert.equal(maskApiKey("short"), "short");
+});
 
 test("formatTask renders an unassigned task without assignment lines", () => {
   const out = formatTask({
