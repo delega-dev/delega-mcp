@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-07-22
+
+### Security
+- `create_webhook` now masks the webhook signing secret by default, so it no
+  longer flows into the model's context, conversation transcripts, or provider
+  logs where it could be read and used to forge signatures. Set
+  `DELEGA_REVEAL_WEBHOOK_SECRETS=1` to print it in full once.
+
+### Changed
+- API error responses no longer log full response bodies to stderr by default;
+  enable verbose logging with `DELEGA_DEBUG=1`.
+
 ## [1.13.0] - 2026-06-12
 
 ### Added
