@@ -74,13 +74,14 @@ Use `https://api.delega.dev` as the URL.
 | `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); custom endpoints receive a clear error. |
 | `claim_task` | Claim a task for exclusive processing (work-queue semantics). Without `task_id`, claims the next available task from the queue; with `task_id`, targets a specific task. Lease-based: default 300s, configurable 30-3600. Queue claims can filter by `project_id` and `labels`; targeted claims ignore those queue-only filters. **Hosted API only.** |
 | `heartbeat_task` | Extend the lease on a claimed task. Optionally report `working`, `waiting_input`, or `errored` plus detail while extending the lease. **Hosted API only.** |
-| `release_task` | Release a claimed task back to the queue without completing it. **Hosted API only.** |
+| `release_task` | Release a claimed task back to the queue without completing it. Pass an optional `handoff` note ("where I left off / why I stopped") that the next agent sees as a "Resuming from" line. **Hosted API only.** |
 | `set_task_state` | Report `working`, `waiting_input`, or `errored` on a claimed task without extending the lease. **Hosted API only.** |
 | `complete_task` | Mark a task as completed |
 | `delete_task` | Delete a task permanently |
 | `add_comment` | Add a comment to a task |
 | `list_projects` | List all projects |
 | `get_stats` | Get task statistics |
+| `fleet_attention` | Triage board of work needing a human: abandoned claims, silent holders, errored, waiting-on-input, overdue, and looping tasks. Scoped like stats. **Hosted API only.** |
 | `list_agents` | List registered agents |
 | `register_agent` | Register a new agent (returns API key), optionally with a role preset |
 | `set_agent_role` | Set an agent's role: `worker`, `coordinator`, or `admin` (admin key required) |
