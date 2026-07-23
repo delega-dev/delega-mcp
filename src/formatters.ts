@@ -391,7 +391,10 @@ export function formatRecall(resp: { query?: string; count?: number; results?: a
   if (!results.length) return `No matching decision-memory for "${resp.query ?? ""}".`;
   const lines: string[] = [`Recall — ${results.length} match(es) for "${resp.query ?? ""}":`];
   for (const r of results) {
-    lines.push("", `[${r.source}] ${r.key}: ${r.value}`);
+    // The API returns parsed context values (string | object | …); render
+    // non-strings as JSON so objects don't collapse to "[object Object]".
+    const val = typeof r.value === "string" ? r.value : JSON.stringify(r.value);
+    lines.push("", `[${r.source}] ${r.key}: ${val}`);
     const task = r.task_content ? `#${r.task_id} (${r.task_content})` : `#${r.task_id}`;
     lines.push(`  ↳ task ${task} · score ${r.score}`);
   }
