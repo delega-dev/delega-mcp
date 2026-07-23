@@ -13,6 +13,7 @@ import {
   formatTaskDetail,
   formatUsage,
   formatFleetAttention,
+  formatRecall,
   maskApiKey,
 } from "./formatters.js";
 
@@ -819,6 +820,28 @@ server.tool(
       return {
         content: [{ type: "text", text: `Task #${task_id} released back to the queue${handoff ? " with a handoff note" : ""}.` }],
       };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── recall ──
+server.tool(
+  "recall",
+  "Search your decision-memory across ALL tasks — recall a prior decision, fact, or constraint without knowing which task recorded it. Returns the best-matching context entries (key, value, source, and the task they live on) ranked by relevance, with human-stated facts weighted highest. Use at the START of new work to avoid re-deciding something already settled. Lexical match for now (exact-ish terms beat paraphrases). Read-only; scoped to what you can read. Hosted API only.",
+  {
+    q: z.string().describe("What you're about to do or looking for, e.g. 'auth token expiry policy' or 'D1 migration approach'"),
+    project_id: z.union([z.string(), z.number()]).optional().describe("Restrict to one project"),
+    source: z.enum(["human_stated", "agent_inferred", "agent_observed", "imported"]).optional().describe("Restrict to a provenance source"),
+    key: z.string().optional().describe("Restrict to a specific context key"),
+    limit: z.number().int().min(1).max(100).optional().describe("Max results (default 20)"),
+    include_superseded: z.boolean().optional().describe("Include retracted/overwritten entries (default false)"),
+  },
+  async (args) => {
+    try {
+      const resp = await client.searchContext(args);
+      return { content: [{ type: "text", text: formatRecall(resp as { query?: string; count?: number; results?: unknown[] }) }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }

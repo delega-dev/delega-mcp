@@ -385,3 +385,15 @@ export function formatFleetAttention(resp: { count?: number; buckets?: Record<st
   }
   return lines.join("\n");
 }
+
+export function formatRecall(resp: { query?: string; count?: number; results?: any[] }): string {
+  const results = resp.results ?? [];
+  if (!results.length) return `No matching decision-memory for "${resp.query ?? ""}".`;
+  const lines: string[] = [`Recall — ${results.length} match(es) for "${resp.query ?? ""}":`];
+  for (const r of results) {
+    lines.push("", `[${r.source}] ${r.key}: ${r.value}`);
+    const task = r.task_content ? `#${r.task_id} (${r.task_content})` : `#${r.task_id}`;
+    lines.push(`  ↳ task ${task} · score ${r.score}`);
+  }
+  return lines.join("\n");
+}

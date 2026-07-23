@@ -401,6 +401,19 @@ export class DelegaClient {
     return this.request<unknown>("GET", `${this.pathPrefix}/fleet/attention`);
   }
 
+  async searchContext(params: {
+    q: string; project_id?: string | number; source?: string; key?: string;
+    limit?: number; include_superseded?: boolean;
+  }) {
+    const query: Record<string, string> = { q: params.q };
+    if (params.project_id !== undefined) query.project_id = String(params.project_id);
+    if (params.source) query.source = params.source;
+    if (params.key) query.key = params.key;
+    if (params.limit !== undefined) query.limit = String(params.limit);
+    if (params.include_superseded) query.include_superseded = "true";
+    return this.request<unknown>("GET", `${this.pathPrefix}/context/search`, undefined, query);
+  }
+
   // ── Agents ──
 
   async listAgents() {

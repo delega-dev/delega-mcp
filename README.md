@@ -70,6 +70,7 @@ Use `https://api.delega.dev` as the URL.
 | `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace), recording provenance source |
 | `get_task_context` | Read a task's persistent context blob, optionally with per-key provenance |
 | `get_context_history` | Read the append-only provenance ledger for a task's context |
+| `recall` | Search decision-memory across ALL tasks — recall a prior decision/fact without knowing which task holds it. Ranked, human-stated weighted highest, scoped to what you can read. **Hosted API only.** |
 | `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (TF-IDF + cosine similarity). Call before `create_task` to avoid redundant work. |
 | `get_usage` | Return quota + rate-limit info. **Hosted API only** (`api.delega.dev`); custom endpoints receive a clear error. |
 | `claim_task` | Claim a task for exclusive processing (work-queue semantics). Without `task_id`, claims the next available task from the queue; with `task_id`, targets a specific task. Lease-based: default 300s, configurable 30-3600. Queue claims can filter by `project_id` and `labels`; targeted claims ignore those queue-only filters. **Hosted API only.** |
