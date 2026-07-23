@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.2] - 2026-07-22
+
+### Security
+- Dynamic API identifiers now reject empty, `.` and `..` path segments before
+  URL construction, preventing URL normalization from changing the route.
+- The MCP Registry release job pins `mcp-publisher` v1.7.9 and verifies its
+  published SHA-256 before executing it with GitHub OIDC permissions.
+- Patched transitive runtime and build dependencies now resolve with zero npm
+  audit advisories.
+
+### Documentation
+- Documented prompt-injection trust boundaries and the opt-in webhook-secret
+  reveal flag.
+
 ## [1.13.1] - 2026-07-22
 
 ### Security

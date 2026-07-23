@@ -53,7 +53,13 @@ function normalizeBaseUrl(rawUrl: string): string {
 }
 
 function pathSegment(value: string | number): string {
-  return encodeURIComponent(String(value));
+  const raw = String(value);
+  // URL normalizers collapse literal dot segments even though
+  // encodeURIComponent leaves them unchanged.
+  if (raw === "" || raw === "." || raw === "..") {
+    throw new Error(`Refusing to build an API path from unsafe id: ${JSON.stringify(raw)}`);
+  }
+  return encodeURIComponent(raw);
 }
 
 export class DelegaClient {

@@ -328,6 +328,15 @@ test("DelegaClient encodes path parameters before building URLs", async () => {
   }
 });
 
+test("DelegaClient rejects URL-normalized dot-segment ids", async () => {
+  const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+  for (const id of ["", ".", ".."]) {
+    await assert.rejects(client.getTask(id), /unsafe id/);
+    await assert.rejects(client.deleteAgent(id), /unsafe id/);
+    await assert.rejects(client.deleteWebhook(id), /unsafe id/);
+  }
+});
+
 test("DelegaClient.getContextHistory fetches all keys or one key", async () => {
   const captured: string[] = [];
   const mock = mockFetch((url) => {
