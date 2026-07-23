@@ -386,6 +386,24 @@ export function formatFleetAttention(resp: { count?: number; buckets?: Record<st
   return lines.join("\n");
 }
 
+export function formatAutomation(rule: any): string {
+  const conditions = Array.isArray(rule.conditions) && rule.conditions.length
+    ? rule.conditions
+        .map((c: any) => `${c.field} ${c.op}${c.value !== undefined ? ` ${c.value}` : ""}`)
+        .join(" AND ")
+    : "(always)";
+  const actions = Array.isArray(rule.actions)
+    ? rule.actions.map((a: any) => a.type).join(", ")
+    : String(rule.actions ?? "");
+  const lines = [
+    `[#${rule.id}] ${rule.name}`,
+    `  When: ${rule.event} · If: ${conditions}`,
+    `  Then: ${actions}`,
+    `  Active: ${rule.active ? "yes" : "no"} · Runs: ${rule.run_count ?? 0}${rule.failure_count ? ` · Consecutive failures: ${rule.failure_count}` : ""}${rule.last_run_at ? ` · Last run: ${rule.last_run_at}` : ""}`,
+  ];
+  return lines.join("\n");
+}
+
 export function formatRecall(resp: { query?: string; count?: number; results?: any[] }): string {
   const results = resp.results ?? [];
   if (!results.length) return `No matching decision-memory for "${resp.query ?? ""}".`;

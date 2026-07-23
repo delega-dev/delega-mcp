@@ -8,6 +8,7 @@ import {
   formatUsage,
   formatFleetAttention,
   formatRecall,
+  formatAutomation,
   maskApiKey,
 } from "../src/formatters.js";
 
@@ -451,4 +452,41 @@ test("formatUsage renders representative hosted payload", () => {
   assert.match(out, /Webhooks: 1\/5/);
   assert.match(out, /Projects: 4\/100/);
   assert.match(out, /Rate limit: 60 req\/min/);
+});
+
+test("formatAutomation renders rule summary with conditions, actions, and counters", () => {
+  const out = formatAutomation({
+    id: "r1",
+    name: "triage bugs",
+    event: "task.created",
+    conditions: [
+      { field: "label", op: "has", value: "bug" },
+      { field: "assigned_to_agent_id", op: "is_null" },
+    ],
+    actions: [{ type: "assign", agent_id: "agt_x" }, { type: "set_priority", priority: 3 }],
+    active: 1,
+    run_count: 7,
+    failure_count: 2,
+    last_run_at: "2026-07-23 12:00:00",
+  });
+  assert.match(out, /\[#r1\] triage bugs/);
+  assert.match(out, /When: task\.created · If: label has bug AND assigned_to_agent_id is_null/);
+  assert.match(out, /Then: assign, set_priority/);
+  assert.match(out, /Active: yes · Runs: 7 · Consecutive failures: 2 · Last run: 2026-07-23 12:00:00/);
+});
+
+test("formatAutomation renders condition-less inactive rules", () => {
+  const out = formatAutomation({
+    id: "r2",
+    name: "always",
+    event: "task.completed",
+    conditions: [],
+    actions: [{ type: "create_task", content: "follow up" }],
+    active: 0,
+    run_count: 0,
+    failure_count: 0,
+    last_run_at: null,
+  });
+  assert.match(out, /If: \(always\)/);
+  assert.match(out, /Active: no · Runs: 0$/m);
 });

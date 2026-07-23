@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - Unreleased
+
+### Added
+- Automation tools — `list_automations`, `create_automation`,
+  `update_automation`, `delete_automation` (all admin-only, hosted API only).
+  Automation rules are when→then rules on the task event stream that run
+  in-process on the Delega API: when an event fires and all conditions match
+  (closed vocabulary, AND-combined), the actions run (`assign`,
+  `set_priority`, `add_label`, `add_comment`, `create_task`, `delegate`, with
+  `{{task.*}}`/`{{event}}` placeholder templating). Server-enforced safety:
+  cascade depth/budget caps, self-trigger suppression, live claims are never
+  overridden, idempotent task creation, quota-counted, and auto-disable after
+  10 consecutive failures. Tool count 36 -> 40.
+
 ## [1.15.0] - 2026-07-23
 
 ### Added

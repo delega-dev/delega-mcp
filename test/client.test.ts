@@ -514,3 +514,50 @@ test("DelegaClient.listTasks passes the claimed filter", async () => {
     mock.restore();
   }
 });
+
+test("DelegaClient automation methods hit the /v1/automations endpoints", async () => {
+  const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
+  const mock = mockFetch((url, init) => {
+    calls.push({
+      url: String(url),
+      method: init?.method,
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    return jsonResponse(calls.length === 1 ? [] : { id: "r1" });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.listAutomations();
+    await client.createAutomation({
+      name: "triage bugs",
+      event: "task.created",
+      conditions: [{ field: "label", op: "has", value: "bug" }],
+      actions: [{ type: "set_priority", priority: 3 }],
+    });
+    await client.updateAutomation("r1", { active: false });
+    await client.deleteAutomation("r1");
+
+    assert.deepEqual(calls.map((c) => [c.method ?? "GET", c.url]), [
+      ["GET", "https://api.delega.dev/v1/automations"],
+      ["POST", "https://api.delega.dev/v1/automations"],
+      ["PUT", "https://api.delega.dev/v1/automations/r1"],
+      ["DELETE", "https://api.delega.dev/v1/automations/r1"],
+    ]);
+    assert.equal((calls[1].body as any).name, "triage bugs");
+    assert.deepEqual((calls[2].body as any), { active: false });
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient.updateAutomation rejects unsafe path segments", async () => {
+  const mock = mockFetch(() => jsonResponse({}));
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await assert.rejects(() => client.updateAutomation("..", { active: false }));
+    await assert.rejects(() => client.deleteAutomation(""));
+    assert.equal(mock.calls, 0);
+  } finally {
+    mock.restore();
+  }
+});
