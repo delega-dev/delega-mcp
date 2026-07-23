@@ -38,6 +38,16 @@ export interface AutomationInput {
   active?: boolean;
 }
 
+export interface IngressSourceInput {
+  name?: string;
+  template?: Record<string, unknown>;
+  filters?: Array<Record<string, unknown>>;
+  default_project_id?: string | null;
+  default_assignee_agent_id?: string | null;
+  active?: boolean;
+  rotate_secret?: boolean;
+}
+
 export class DelegaApiError extends Error {
   status: number;
   statusText: string;
@@ -470,5 +480,23 @@ export class DelegaClient {
 
   async deleteAutomation(automationId: string | number) {
     return this.request<unknown>("DELETE", `${this.pathPrefix}/automations/${pathSegment(automationId)}`);
+  }
+
+  // ── Ingress sources ──
+
+  async listIngressSources() {
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/ingress-sources`);
+  }
+
+  async createIngressSource(data: IngressSourceInput) {
+    return this.request<unknown>("POST", `${this.pathPrefix}/ingress-sources`, data);
+  }
+
+  async updateIngressSource(sourceId: string | number, data: IngressSourceInput) {
+    return this.request<unknown>("PUT", `${this.pathPrefix}/ingress-sources/${pathSegment(sourceId)}`, data);
+  }
+
+  async deleteIngressSource(sourceId: string | number) {
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/ingress-sources/${pathSegment(sourceId)}`);
   }
 }

@@ -15,6 +15,7 @@ import {
   formatFleetAttention,
   formatRecall,
   formatAutomation,
+  formatIngressSource,
   maskApiKey,
 } from "./formatters.js";
 
@@ -1291,6 +1292,139 @@ server.tool(
       await client.deleteAutomation(params.automation_id);
       return {
         content: [{ type: "text", text: `Automation #${params.automation_id} deleted.` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── Ingress sources ──
+
+const ingressFilterSchema = z
+  .object({
+    path: z.string().max(200).describe("Dot-path into the payload, e.g. workflow.conclusion or runs.0.status"),
+    op: z.enum(["eq", "neq", "exists", "not_exists"]).describe("Comparison"),
+    value: z.union([z.string(), z.number(), z.boolean()]).optional().describe("Value for eq/neq (strict equality)"),
+  })
+  .describe("One filter; all filters must pass (AND) or the delivery is skipped");
+
+const ingressTemplateSchema = z
+  .object({
+    content: z.string().max(2000).describe("Task title template. {{dot.path}} placeholders resolve against the payload; only primitives render"),
+    description: z.string().max(2000).optional().describe("Task description template"),
+    priority: z.number().int().min(1).max(4).optional().describe("Static priority for created tasks"),
+    labels: z.array(z.string()).max(10).optional().describe("Static labels; the 'ingress' provenance label is always added"),
+    dedupe_key: z.string().max(2000).optional().describe("Idempotency key template, e.g. {{run.id}} — retried deliveries with the same key create no duplicate. Default: hash of the raw body"),
+  })
+  .describe("Maps payload paths to task fields — a closed vocabulary, no expressions");
+
+// ── list_ingress_sources ──
+
+server.tool(
+  "list_ingress_sources",
+  "List inbound connector sources with delivery counters (admin only). Hosted API only.",
+  {},
+  async () => {
+    try {
+      const sources = await client.listIngressSources();
+      if (!sources.length) {
+        return { content: [{ type: "text", text: "No ingress sources configured." }] };
+      }
+      const text = sources.map((source: any) => formatIngressSource(source)).join("\n\n");
+      return { content: [{ type: "text", text }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── create_ingress_source ──
+
+server.tool(
+  "create_ingress_source",
+  "Create an inbound connector: a signed public endpoint that turns external events (CI failures, alerts, calendars) into Delega tasks (admin only). The sender signs each POST body with HMAC-SHA256 (header X-Delega-Ingress-Signature: t=<unix>,v1=<hex of HMAC(secret, 't.body')>, 5-minute tolerance). Ingress can ONLY create tasks; routing (project/assignee) is pinned here and never payload-controlled; every created task carries the 'ingress' label and provenance marker, and automation rules ignore ingress tasks unless they explicitly opt in with a source=ingress condition. Hosted API only.",
+  {
+    name: z.string().max(80).describe("Short human-readable source name, e.g. 'github-actions-ci'"),
+    template: ingressTemplateSchema,
+    filters: z.array(ingressFilterSchema).max(10).optional().describe("Only deliveries passing all filters create tasks"),
+    default_project_id: z.string().optional().describe("Project for created tasks (pinned; payload cannot override)"),
+    default_assignee_agent_id: z.string().optional().describe("Assignee for created tasks (pinned; payload cannot override)"),
+    active: z.boolean().optional().describe("Set false to create the source disabled"),
+  },
+  async (params) => {
+    try {
+      const source = await client.createIngressSource(params);
+      const s = source as any;
+      const lines = [`Ingress source created:`, formatIngressSource(s)];
+      if (s.secret) {
+        // Same posture as webhook signing secrets: masked by default so the
+        // full value is not persisted into transcripts/logs.
+        if (process.env.DELEGA_REVEAL_WEBHOOK_SECRETS === "1") {
+          lines.push(`  Secret: ${s.secret}`);
+          lines.push(`\n⚠️ Save the secret — it won't be shown again. The sender uses it to sign every delivery.`);
+        } else {
+          lines.push(`  Secret: ${maskApiKey(s.secret)} (masked)`);
+          lines.push(`\n⚠️ The signing secret is shown only once and is masked here. Re-run with DELEGA_REVEAL_WEBHOOK_SECRETS=1 to print it in full, then store it in the sender's secret store.`);
+        }
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── update_ingress_source ──
+
+server.tool(
+  "update_ingress_source",
+  "Update an inbound connector source (admin only). Only supplied fields change; pass rotate_secret true to mint a new signing secret (shown once — the old secret stops working immediately). Hosted API only.",
+  {
+    source_id: z.union([z.string(), z.number()]).describe("Ingress source ID to update"),
+    name: z.string().max(80).optional().describe("New source name"),
+    template: ingressTemplateSchema.optional(),
+    filters: z.array(ingressFilterSchema).max(10).optional().describe("Replacement filters (full replacement, not a merge)"),
+    default_project_id: z.string().nullable().optional().describe("New pinned project (null clears)"),
+    default_assignee_agent_id: z.string().nullable().optional().describe("New pinned assignee (null clears)"),
+    active: z.boolean().optional().describe("Enable or disable the source"),
+    rotate_secret: z.boolean().optional().describe("Mint a new signing secret; the old one stops working immediately"),
+  },
+  async (params) => {
+    try {
+      const { source_id, ...data } = params;
+      const source = await client.updateIngressSource(source_id, data);
+      const s = source as any;
+      const lines = [`Ingress source updated:`, formatIngressSource(s)];
+      if (s.secret) {
+        if (process.env.DELEGA_REVEAL_WEBHOOK_SECRETS === "1") {
+          lines.push(`  New secret: ${s.secret}`);
+          lines.push(`\n⚠️ Save the new secret — it won't be shown again. Update the sender before its next delivery.`);
+        } else {
+          lines.push(`  New secret: ${maskApiKey(s.secret)} (masked)`);
+          lines.push(`\n⚠️ The rotated secret is shown only once and is masked here. Re-run with DELEGA_REVEAL_WEBHOOK_SECRETS=1 to print it in full.`);
+        }
+      }
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── delete_ingress_source ──
+
+server.tool(
+  "delete_ingress_source",
+  "Delete an inbound connector source and its delivery log by ID (admin only). Its endpoint immediately returns 404. Hosted API only.",
+  {
+    source_id: z.union([z.string(), z.number()]).describe("Ingress source ID to delete"),
+  },
+  async (params) => {
+    try {
+      await client.deleteIngressSource(params.source_id);
+      return {
+        content: [{ type: "text", text: `Ingress source #${params.source_id} deleted.` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);

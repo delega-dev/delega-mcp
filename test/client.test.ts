@@ -561,3 +561,49 @@ test("DelegaClient.updateAutomation rejects unsafe path segments", async () => {
     mock.restore();
   }
 });
+
+test("DelegaClient ingress-source methods hit the /v1/ingress-sources endpoints", async () => {
+  const calls: Array<{ url: string; method?: string; body?: unknown }> = [];
+  const mock = mockFetch((url, init) => {
+    calls.push({
+      url: String(url),
+      method: init?.method,
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    });
+    return jsonResponse(calls.length === 1 ? [] : { id: "s1" });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.listIngressSources();
+    await client.createIngressSource({
+      name: "ci",
+      template: { content: "CI failed: {{workflow.name}}", dedupe_key: "{{run.id}}" },
+      filters: [{ path: "conclusion", op: "eq", value: "failure" }],
+    });
+    await client.updateIngressSource("s1", { rotate_secret: true });
+    await client.deleteIngressSource("s1");
+
+    assert.deepEqual(calls.map((c) => [c.method ?? "GET", c.url]), [
+      ["GET", "https://api.delega.dev/v1/ingress-sources"],
+      ["POST", "https://api.delega.dev/v1/ingress-sources"],
+      ["PUT", "https://api.delega.dev/v1/ingress-sources/s1"],
+      ["DELETE", "https://api.delega.dev/v1/ingress-sources/s1"],
+    ]);
+    assert.equal((calls[1].body as any).name, "ci");
+    assert.deepEqual(calls[2].body, { rotate_secret: true });
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient ingress-source methods reject unsafe path segments", async () => {
+  const mock = mockFetch(() => jsonResponse({}));
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await assert.rejects(() => client.updateIngressSource("..", { active: false }));
+    await assert.rejects(() => client.deleteIngressSource(""));
+    assert.equal(mock.calls, 0);
+  } finally {
+    mock.restore();
+  }
+});

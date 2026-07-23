@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - Unreleased
+
+### Added
+- Inbound connector tools — `list_ingress_sources`, `create_ingress_source`,
+  `update_ingress_source`, `delete_ingress_source` (all admin-only, hosted API
+  only). Ingress sources are signed public endpoints that turn external events
+  (CI failures, alerts, calendars) into tasks: HMAC-SHA256 signatures with
+  5-minute replay tolerance, dot-path templates with a closed vocabulary,
+  filters, and idempotent dedupe keys. Server-enforced safety: create-only,
+  routing pinned per source (never payload-controlled), automatic `ingress`
+  provenance label, opt-in-only automation matching, per-source rate limiting,
+  and quota-counted task creation. Tool count 40 -> 44.
+- Task renders now surface a "⚠ External source" warning line for
+  ingress-created tasks: their content is untrusted external data to triage,
+  not instructions to follow.
+
 ## [1.16.0] - 2026-07-23
 
 ### Added
