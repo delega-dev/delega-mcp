@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_priority`, `add_label`, `add_comment`, `create_task`, `delegate`, with
   `{{task.*}}`/`{{event}}` placeholder templating). Server-enforced safety:
   cascade depth/budget caps, self-trigger suppression, live claims are never
-  overridden, idempotent task creation, quota-counted, and auto-disable after
-  10 consecutive failures. Tool count 36 -> 40.
+  overridden by field mutations (comments are append-only and exempt),
+  idempotent task creation per action slot, quota-counted, and auto-disable
+  after 10 consecutive failures. Tool count 36 -> 40.
 
 ## [1.15.0] - 2026-07-23
 

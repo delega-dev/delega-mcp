@@ -1223,7 +1223,7 @@ server.tool(
 
 server.tool(
   "create_automation",
-  "Create an automation rule: when an event fires and all conditions match, run the actions in-process — no webhook receiver needed (admin only). Example: when a task labeled bug is created, assign it to an agent at priority 3. Safety: cascades are depth- and budget-capped, rules never react to tasks they created, and tasks under a live claim are never touched. Hosted API only.",
+  "Create an automation rule: when an event fires and all conditions match, run the actions in-process — no webhook receiver needed (admin only). Example: when a task labeled bug is created, assign it to an agent at priority 3. Safety: cascades are depth- and budget-capped, rules never react to tasks they created, and field mutations on tasks under a live claim are always skipped (comments are append-only and still allowed). Hosted API only.",
   {
     name: z.string().max(80).describe("Short human-readable rule name"),
     event: z.enum(AUTOMATION_EVENTS).describe("Event that triggers the rule"),
