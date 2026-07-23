@@ -131,6 +131,14 @@ function formatTaskBody(t: any): string[] {
     lines.push(statusLine);
   }
 
+  // Handoff note left by the previous holder on release — the resume
+  // breadcrumb so the next agent continues instead of restarting.
+  if (typeof t.handoff_note === "string" && t.handoff_note) {
+    const by = formatAgentRef(t.handoff_by_agent, t.handoff_by_agent_id) || "previous holder";
+    const st = typeof t.handoff_state === "string" && t.handoff_state ? ` [${t.handoff_state}]` : "";
+    lines.push(`  ↩ Resuming from ${by}${st}: "${t.handoff_note}"`);
+  }
+
   const assignee = formatAgentRef(t.assigned_to_agent, t.assigned_to_agent_id);
   if (assignee) lines.push(`  Assigned to: ${assignee}`);
 
@@ -350,5 +358,30 @@ export function formatAgent(a: any, options: { revealApiKey?: boolean } = {}): s
   const permissions = normalizePermissions(a.permissions);
   if (permissions.length) lines.push(`  Permissions: ${permissions.join(", ")}`);
   if (a.active !== undefined) lines.push(`  Active: ${a.active ? "yes" : "no"}`);
+  return lines.join("\n");
+}
+
+export function formatFleetAttention(resp: { count?: number; buckets?: Record<string, any[]> }): string {
+  const buckets = resp.buckets ?? {};
+  const count = resp.count ?? 0;
+  if (count === 0) return "Fleet attention: nothing needs attention right now.";
+  const labels: Record<string, string> = {
+    abandoned_claims: "Abandoned claims (agent went silent, lease expired)",
+    silent_holders: "Silent holders (claim held, agent gone quiet)",
+    errored: "Errored",
+    waiting_input: "Waiting on input",
+    overdue: "Overdue",
+    looping: "Looping (repeatedly reopened)",
+  };
+  const lines: string[] = [`Fleet attention — ${count} item(s) need attention:`];
+  for (const [key, label] of Object.entries(labels)) {
+    const items = buckets[key] ?? [];
+    if (!items.length) continue;
+    lines.push("", `${label} (${items.length}):`);
+    for (const t of items.slice(0, 20)) {
+      const detail = t.session_state_detail ? ` — "${t.session_state_detail}"` : "";
+      lines.push(`  #${t.id} ${t.content}${detail}`);
+    }
+  }
   return lines.join("\n");
 }

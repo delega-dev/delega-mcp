@@ -12,6 +12,7 @@ import {
   formatTask,
   formatTaskDetail,
   formatUsage,
+  formatFleetAttention,
   maskApiKey,
 } from "./formatters.js";
 
@@ -807,16 +808,32 @@ server.tool(
 
 server.tool(
   "release_task",
-  "Release a task you have claimed back to the queue without completing it. Use when you cannot finish the work or another agent should take over — the task returns to open status and becomes immediately claimable. Hosted API only.",
+  "Release a task you have claimed back to the queue without completing it. Use when you cannot finish the work or another agent should take over — the task returns to open status and becomes immediately claimable. Leave a `handoff` note so the next agent resumes instead of restarting. Hosted API only.",
   {
     task_id: z.union([z.string(), z.number()]).describe("The claimed task ID to release"),
+    handoff: z.string().max(500).optional().describe("Optional handoff note: where you left off / why you stopped (e.g. 'migration written, blocked on prod DB creds'). The next agent to claim this task sees it as a 'Resuming from' line. If omitted, the task's last session-state detail is preserved as the note."),
   },
-  async ({ task_id }) => {
+  async ({ task_id, handoff }) => {
     try {
-      await client.releaseTask(task_id);
+      await client.releaseTask(task_id, handoff);
       return {
-        content: [{ type: "text", text: `Task #${task_id} released back to the queue.` }],
+        content: [{ type: "text", text: `Task #${task_id} released back to the queue${handoff ? " with a handoff note" : ""}.` }],
       };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── fleet_attention ──
+server.tool(
+  "fleet_attention",
+  "Triage board: one call returning everything across the account that needs a human or coordinator — abandoned claims (a crashed/silent agent's expired lease), silent holders, errored and input-blocked tasks, overdue, and looping (repeatedly reopened) tasks. Scoped like stats: coordinators/admins see the whole account, workers see their own involvement. Read-only. Hosted API only.",
+  {},
+  async () => {
+    try {
+      const resp = await client.getFleetAttention();
+      return { content: [{ type: "text", text: formatFleetAttention(resp as { count?: number; buckets?: Record<string, unknown[]> }) }] };
     } catch (error: unknown) {
       return toolErrorResult(error);
     }

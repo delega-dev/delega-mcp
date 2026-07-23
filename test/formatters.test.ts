@@ -6,8 +6,34 @@ import {
   formatTask,
   formatTaskDetail,
   formatUsage,
+  formatFleetAttention,
   maskApiKey,
 } from "../src/formatters.js";
+
+test("formatTask renders a Resuming-from line when a handoff note is present", () => {
+  const out = formatTask({
+    id: "t1", content: "multi-session work", completed: false, status: "open",
+    handoff_note: "migration written, blocked on prod DB creds",
+    handoff_by_agent_id: "agent9", handoff_state: "waiting_input",
+  });
+  assert.match(out, /Resuming from #agent9 \[waiting_input\]: "migration written, blocked on prod DB creds"/);
+});
+
+test("formatFleetAttention renders buckets and an all-clear state", () => {
+  assert.equal(formatFleetAttention({ count: 0, buckets: {} }), "Fleet attention: nothing needs attention right now.");
+  const out = formatFleetAttention({
+    count: 2,
+    buckets: {
+      errored: [{ id: "e1", content: "boom", session_state_detail: "stack overflow" }],
+      abandoned_claims: [{ id: "a1", content: "stalled" }],
+    },
+  });
+  assert.match(out, /2 item\(s\) need attention/);
+  assert.match(out, /Errored \(1\):/);
+  assert.match(out, /#e1 boom — "stack overflow"/);
+  assert.match(out, /Abandoned claims[^\n]*\(1\):/);
+  assert.match(out, /#a1 stalled/);
+});
 
 test("maskApiKey hides the middle of a secret and never echoes it whole", () => {
   const secret = "whsec_abcdefghijklmnopqrstuvwxyz0123456789";

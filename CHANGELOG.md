@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `fleet_attention` tool — a triage board of work that needs a human or
+  coordinator: abandoned claims (crashed/silent agent, expired lease), silent
+  holders, errored, waiting-on-input, overdue, and looping tasks. Scoped like
+  stats. Tool count 34 -> 35.
+- `release_task` accepts an optional `handoff` note ("where I left off / why I
+  stopped"). Task renders show a "Resuming from …" line when a released task
+  carries a handoff, so the next agent resumes instead of restarting.
+
 ## [1.13.2] - 2026-07-22
 
 ### Security

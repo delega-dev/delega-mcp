@@ -363,12 +363,12 @@ export class DelegaClient {
     );
   }
 
-  async releaseTask(taskId: string | number) {
+  async releaseTask(taskId: string | number, handoff?: string) {
     this.assertHostedClaiming("release_task");
     return this.request<unknown>(
       "POST",
       `${this.pathPrefix}/tasks/${pathSegment(taskId)}/release`,
-      {},
+      handoff !== undefined ? { handoff } : {},
     );
   }
 
@@ -395,6 +395,10 @@ export class DelegaClient {
 
   async getStats() {
     return this.request<unknown>("GET", `${this.pathPrefix}/stats`);
+  }
+
+  async getFleetAttention() {
+    return this.request<unknown>("GET", `${this.pathPrefix}/fleet/attention`);
   }
 
   // ── Agents ──
