@@ -14,6 +14,7 @@ import {
   formatUsage,
   formatFleetAttention,
   formatRecall,
+  formatAutomation,
   maskApiKey,
 } from "./formatters.js";
 
@@ -1139,6 +1140,157 @@ server.tool(
       await client.deleteWebhook(params.webhook_id);
       return {
         content: [{ type: "text", text: `Webhook #${params.webhook_id} deleted.` }],
+      };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── Automations ──
+
+const AUTOMATION_EVENTS = [
+  "task.created",
+  "task.updated",
+  "task.completed",
+  "task.deleted",
+  "task.assigned",
+  "task.delegated",
+  "task.commented",
+  "task.claimed",
+  "task.released",
+  "task.state_changed",
+  "task.linked",
+] as const;
+
+const automationConditionSchema = z
+  .object({
+    field: z
+      .enum(["label", "priority", "project_id", "assigned_to_agent_id", "created_by_agent_id", "source"])
+      .describe("Task field to test"),
+    op: z
+      .enum(["has", "not_has", "eq", "neq", "gte", "lte", "is_null", "not_null"])
+      .describe("Comparison (label: has/not_has; priority: eq/neq/gte/lte; ids: eq/neq/is_null/not_null; source: eq/neq)"),
+    value: z
+      .union([z.string(), z.number()])
+      .optional()
+      .describe("Comparison value (omit for is_null/not_null)"),
+  })
+  .describe("One condition; all conditions must match (AND)");
+
+const automationActionSchema = z
+  .object({
+    type: z
+      .enum(["assign", "set_priority", "add_label", "add_comment", "create_task", "delegate"])
+      .describe("Action verb"),
+    agent_id: z.string().optional().describe("Agent to assign/delegate to (assign, delegate)"),
+    priority: z.number().int().min(1).max(4).optional().describe("Priority 1-4 (set_priority, create_task, delegate)"),
+    label: z.string().optional().describe("Label to add (add_label)"),
+    content: z
+      .string()
+      .optional()
+      .describe(
+        "Text template (add_comment, create_task, delegate). Placeholders: {{event}}, {{task.id}}, {{task.content}}, {{task.priority}}, {{task.project_id}}, {{task.labels}}, {{task.due_date}}",
+      ),
+    description: z.string().optional().describe("Description template (create_task, delegate)"),
+    project_id: z.string().optional().describe("Project for the new task (create_task)"),
+    labels: z.array(z.string()).optional().describe("Labels for the new task (create_task, delegate)"),
+    assigned_to_agent_id: z.string().optional().describe("Assignee for the new task (create_task)"),
+  })
+  .describe("One action to run when the rule matches");
+
+// ── list_automations ──
+
+server.tool(
+  "list_automations",
+  "List all automation rules configured for your account, with run/failure counts (admin only). Hosted API only.",
+  {},
+  async () => {
+    try {
+      const rules = await client.listAutomations();
+      if (!rules.length) {
+        return { content: [{ type: "text", text: "No automation rules configured." }] };
+      }
+      const text = rules.map((rule: any) => formatAutomation(rule)).join("\n\n");
+      return { content: [{ type: "text", text }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── create_automation ──
+
+server.tool(
+  "create_automation",
+  "Create an automation rule: when an event fires and all conditions match, run the actions in-process — no webhook receiver needed (admin only). Example: when a task labeled bug is created, assign it to an agent at priority 3. Safety: cascades are depth- and budget-capped, rules never react to tasks they created, and field mutations on tasks under a live claim are always skipped (comments are append-only and still allowed). Hosted API only.",
+  {
+    name: z.string().max(80).describe("Short human-readable rule name"),
+    event: z.enum(AUTOMATION_EVENTS).describe("Event that triggers the rule"),
+    conditions: z
+      .array(automationConditionSchema)
+      .max(10)
+      .optional()
+      .describe("Conditions, AND-combined; omit to match every event"),
+    actions: z.array(automationActionSchema).min(1).max(5).describe("Actions to run in order"),
+    active: z.boolean().optional().describe("Set false to create the rule disabled"),
+  },
+  async (params) => {
+    try {
+      const rule = await client.createAutomation(params);
+      return { content: [{ type: "text", text: `Automation created:\n${formatAutomation(rule)}` }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── update_automation ──
+
+server.tool(
+  "update_automation",
+  "Update an automation rule (admin only). Only supplied fields change; setting active true re-enables a rule that was auto-disabled after repeated failures. Hosted API only.",
+  {
+    automation_id: z.union([z.string(), z.number()]).describe("Automation rule ID to update"),
+    name: z.string().max(80).optional().describe("New rule name"),
+    event: z.enum(AUTOMATION_EVENTS).optional().describe("New trigger event"),
+    conditions: z
+      .array(automationConditionSchema)
+      .max(10)
+      .optional()
+      .describe("Replacement conditions (full replacement, not a merge)"),
+    actions: z
+      .array(automationActionSchema)
+      .min(1)
+      .max(5)
+      .optional()
+      .describe("Replacement actions (full replacement, not a merge)"),
+    active: z.boolean().optional().describe("Enable or disable the rule"),
+  },
+  async (params) => {
+    try {
+      const { automation_id, ...data } = params;
+      const rule = await client.updateAutomation(automation_id, data);
+      return { content: [{ type: "text", text: `Automation updated:\n${formatAutomation(rule)}` }] };
+    } catch (error: unknown) {
+      return toolErrorResult(error);
+    }
+  },
+);
+
+// ── delete_automation ──
+
+server.tool(
+  "delete_automation",
+  "Delete an automation rule and its run log by ID (admin only). Hosted API only.",
+  {
+    automation_id: z.union([z.string(), z.number()]).describe("Automation rule ID to delete"),
+  },
+  async (params) => {
+    try {
+      await client.deleteAutomation(params.automation_id);
+      return {
+        content: [{ type: "text", text: `Automation #${params.automation_id} deleted.` }],
       };
     } catch (error: unknown) {
       return toolErrorResult(error);

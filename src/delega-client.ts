@@ -30,6 +30,14 @@ export interface RecurrenceInput {
   skip_if_open?: boolean;
 }
 
+export interface AutomationInput {
+  name?: string;
+  event?: string;
+  conditions?: Array<Record<string, unknown>>;
+  actions?: Array<Record<string, unknown>>;
+  active?: boolean;
+}
+
 export class DelegaApiError extends Error {
   status: number;
   statusText: string;
@@ -444,5 +452,23 @@ export class DelegaClient {
 
   async deleteWebhook(webhookId: string | number) {
     return this.request<unknown>("DELETE", `${this.pathPrefix}/webhooks/${pathSegment(webhookId)}`);
+  }
+
+  // ── Automations ──
+
+  async listAutomations() {
+    return this.request<unknown[]>("GET", `${this.pathPrefix}/automations`);
+  }
+
+  async createAutomation(data: AutomationInput) {
+    return this.request<unknown>("POST", `${this.pathPrefix}/automations`, data);
+  }
+
+  async updateAutomation(automationId: string | number, data: AutomationInput) {
+    return this.request<unknown>("PUT", `${this.pathPrefix}/automations/${pathSegment(automationId)}`, data);
+  }
+
+  async deleteAutomation(automationId: string | number) {
+    return this.request<unknown>("DELETE", `${this.pathPrefix}/automations/${pathSegment(automationId)}`);
   }
 }
