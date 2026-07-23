@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `recall` tool — cross-task decision-memory search. Recall a prior decision or
+  fact without knowing which task recorded it; results are ranked (human-stated
+  weighted highest) and scoped to what the agent can read. Lexical match for v1
+  (semantic/embeddings upgrade is a follow-up). Tool count 35 -> 36.
+
 ## [1.14.0] - 2026-07-23
 
 ### Added

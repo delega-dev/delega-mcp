@@ -7,8 +7,31 @@ import {
   formatTaskDetail,
   formatUsage,
   formatFleetAttention,
+  formatRecall,
   maskApiKey,
 } from "../src/formatters.js";
+
+test("formatRecall renders ranked matches and an empty state", () => {
+  assert.equal(formatRecall({ query: "nothing", count: 0, results: [] }), 'No matching decision-memory for "nothing".');
+  const out = formatRecall({
+    query: "D1 migration",
+    count: 1,
+    results: [{ task_id: "t1", task_content: "Set up DB", key: "migration_strategy", value: "use D1 batch API", source: "human_stated", score: 0.42 }],
+  });
+  assert.match(out, /1 match\(es\) for "D1 migration"/);
+  assert.match(out, /\[human_stated\] migration_strategy: use D1 batch API/);
+  assert.match(out, /task #t1 \(Set up DB\) · score 0\.42/);
+});
+
+test("formatRecall renders object values as JSON, not [object Object]", () => {
+  const out = formatRecall({
+    query: "cfg",
+    count: 1,
+    results: [{ task_id: "t2", key: "cfg_obj", value: { retries: 3, mode: "batch" }, source: "agent_inferred", score: 0.3 }],
+  });
+  assert.match(out, /cfg_obj: \{"retries":3,"mode":"batch"\}/);
+  assert.ok(!out.includes("[object Object]"));
+});
 
 test("formatTask renders a Resuming-from line when a handoff note is present", () => {
   const out = formatTask({
