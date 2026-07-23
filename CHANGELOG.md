@@ -15,8 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   5-minute replay tolerance, dot-path templates with a closed vocabulary,
   filters, and idempotent dedupe keys. Server-enforced safety: create-only,
   routing pinned per source (never payload-controlled), automatic `ingress`
-  provenance label, opt-in-only automation matching, per-source rate limiting,
-  and quota-counted task creation. Tool count 40 -> 44.
+  provenance label with sticky propagation through automation-created tasks,
+  opt-in-only automation matching, per-source rate limiting, quota-counted
+  task creation, and a delivery log that stores outcome metadata + body
+  hash/size only (payloads are never retained). Tool count 40 -> 44.
 - Task renders now surface a "⚠ External source" warning line for
   ingress-created tasks: their content is untrusted external data to triage,
   not instructions to follow.
