@@ -531,3 +531,23 @@ test("formatTask renders no provenance warning for ordinary tasks", () => {
   const out = formatTask({ id: "t2", content: "Normal task", labels: "[]", completed: 0 });
   assert.doesNotMatch(out, /External source/);
 });
+
+test("formatTask shows a required evidence policy", () => {
+  const out = formatTask({ id: "t1", content: "gated task", completed: false, evidence_policy: "required", labels: "[]" });
+  assert.match(out, /Evidence policy: required/);
+  const none = formatTask({ id: "t2", content: "open task", completed: false, labels: "[]" });
+  assert.doesNotMatch(none, /Evidence policy/);
+});
+
+test("formatTaskDetail renders completion evidence items", () => {
+  const out = formatTaskDetail({
+    id: "t1", content: "done with proof", completed: true, labels: "[]",
+    completion_evidence: JSON.stringify([
+      { kind: "pr", ref: "org/repo#5", summary: "merged" },
+      { kind: "command_output", ref: "264 tests passed" },
+    ]),
+  });
+  assert.match(out, /Completion evidence:/);
+  assert.match(out, /- pr: org\/repo#5 — merged/);
+  assert.match(out, /- command_output: 264 tests passed/);
+});

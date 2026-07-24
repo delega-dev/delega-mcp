@@ -124,6 +124,7 @@ function formatTaskBody(t: any): string[] {
   if (labels.length) lines.push(`  Labels: ${labels.join(", ")}`);
   if (t.priority) lines.push(`  Priority: ${t.priority}`);
   if (t.due_date) lines.push(`  Due: ${t.due_date}`);
+  if (t.evidence_policy === "required") lines.push(`  Evidence policy: required (completion must attach proof)`);
 
   if (isInterestingStatus(t.status)) {
     // Claimed tasks may carry a session state ('working' | 'waiting_input' |
@@ -234,9 +235,28 @@ export function formatTaskDetail(t: any): string {
   if (ctx && Object.keys(ctx).length) {
     lines.push(...formatContextPretty(ctx));
   }
+  lines.push(...formatEvidenceLines(t));
   lines.push(...formatTaskLinkLines(t));
   lines.push(...formatSubtaskLines(t));
   return lines.join("\n");
+}
+
+// Completion evidence, when present, is a stored TEXT (JSON array) column.
+function formatEvidenceLines(t: any): string[] {
+  let items: Array<{ kind?: string; ref?: string; summary?: string }> = [];
+  try {
+    const raw = t.completion_evidence;
+    if (typeof raw === "string" && raw.trim()) items = JSON.parse(raw);
+    else if (Array.isArray(raw)) items = raw;
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(items) || !items.length) return [];
+  const lines = ["  Completion evidence:"];
+  for (const e of items.slice(0, 5)) {
+    lines.push(`    - ${e.kind ?? "?"}: ${e.ref ?? ""}${e.summary ? ` — ${e.summary}` : ""}`);
+  }
+  return lines;
 }
 
 export function formatRecurrence(r: any): string {

@@ -58,7 +58,7 @@ Use `https://api.delega.dev` as the URL.
 | `get_task` | Get full task details including subtasks and task links |
 | `link_task` | Attach a branch, commit, PR, or URL link to a task |
 | `list_task_links` | List branch, commit, PR, and URL links attached to a task |
-| `create_task` | Create a new task |
+| `create_task` | Create a new task (optional `evidence_policy: 'required'` forces completion evidence) |
 | `list_recurrences` | List recurring task templates |
 | `create_recurring_task` | Create a recurring task template (`daily`, `weekly`, `monthly`, or `yearly`) |
 | `update_recurrence` | Update a recurring task template, including pausing/resuming with `active` |
@@ -77,7 +77,7 @@ Use `https://api.delega.dev` as the URL.
 | `heartbeat_task` | Extend the lease on a claimed task. Optionally report `working`, `waiting_input`, or `errored` plus detail while extending the lease. **Hosted API only.** |
 | `release_task` | Release a claimed task back to the queue without completing it. Pass an optional `handoff` note ("where I left off / why I stopped") that the next agent sees as a "Resuming from" line. **Hosted API only.** |
 | `set_task_state` | Report `working`, `waiting_input`, or `errored` on a claimed task without extending the lease. **Hosted API only.** |
-| `complete_task` | Mark a task as completed |
+| `complete_task` | Mark a task as completed, optionally attaching structured `evidence` (commit/PR/CI check/deploy SHA/artifact/command output). Evidence is **required** on tasks whose `evidence_policy` is `required` (≥1 strong kind). |
 | `delete_task` | Delete a task permanently |
 | `add_comment` | Add a comment to a task |
 | `list_projects` | List all projects |

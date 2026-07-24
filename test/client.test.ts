@@ -607,3 +607,21 @@ test("DelegaClient ingress-source methods reject unsafe path segments", async ()
     mock.restore();
   }
 });
+
+test("DelegaClient.completeTask sends evidence only when provided", async () => {
+  const calls: Array<{ url: string; body?: unknown }> = [];
+  const mock = mockFetch((url, init) => {
+    calls.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    return jsonResponse({ id: "t1", completed: 1 });
+  });
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await client.completeTask("t1");
+    await client.completeTask("t1", [{ kind: "commit", ref: "abc123", summary: "the fix" }]);
+    assert.equal(calls[0].body, undefined); // no body when no evidence
+    assert.deepEqual((calls[1].body as any).evidence, [{ kind: "commit", ref: "abc123", summary: "the fix" }]);
+    assert.equal(calls[1].url, "https://api.delega.dev/v1/tasks/t1/complete");
+  } finally {
+    mock.restore();
+  }
+});
