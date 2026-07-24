@@ -38,6 +38,14 @@ export interface AutomationInput {
   active?: boolean;
 }
 
+export type EvidenceKind = "commit" | "pr" | "ci_check" | "deploy_sha" | "artifact_url" | "command_output";
+
+export interface EvidenceItemInput {
+  kind: EvidenceKind;
+  ref: string;
+  summary?: string;
+}
+
 export interface IngressSourceInput {
   name?: string;
   template?: Record<string, unknown>;
@@ -175,6 +183,7 @@ export class DelegaClient {
     labels?: string[];
     priority?: number;
     due_date?: string;
+    evidence_policy?: "required" | null;
   }) {
     return this.request<unknown>("POST", `${this.pathPrefix}/tasks`, data);
   }
@@ -189,6 +198,7 @@ export class DelegaClient {
       due_date?: string;
       project_id?: ProjectRef;
       assigned_to_agent_id?: string | number | null;
+      evidence_policy?: "required" | null;
     },
   ) {
     return this.request<unknown>("PUT", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`, data);
@@ -200,8 +210,12 @@ export class DelegaClient {
     });
   }
 
-  async completeTask(taskId: string | number) {
-    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/complete`);
+  async completeTask(taskId: string | number, evidence?: EvidenceItemInput[]) {
+    return this.request<unknown>(
+      "POST",
+      `${this.pathPrefix}/tasks/${pathSegment(taskId)}/complete`,
+      evidence && evidence.length ? { evidence } : undefined,
+    );
   }
 
   async deleteTask(taskId: string | number) {

@@ -293,6 +293,10 @@ server.tool(
       .string()
       .optional()
       .describe("Due date in YYYY-MM-DD format"),
+    evidence_policy: z
+      .enum(["required"])
+      .optional()
+      .describe("Set 'required' to force structured completion evidence (commit/PR/CI/etc.) before this task can be completed"),
   },
   async (params) => {
     try {
@@ -424,6 +428,10 @@ server.tool(
       .union([z.string(), z.number(), z.null()])
       .optional()
       .describe("Assign to agent ID, or null to unassign"),
+    evidence_policy: z
+      .union([z.enum(["required"]), z.null()])
+      .optional()
+      .describe("Set 'required' to force completion evidence; null to clear (admin key required to remove a required policy)"),
   },
   async ({ task_id, ...updates }) => {
     try {
@@ -684,13 +692,22 @@ server.tool(
 
 server.tool(
   "complete_task",
-  "Mark a task as completed",
+  "Mark a task as completed. Attach `evidence` — structured proof the work happened (commit, PR, CI check, deploy SHA, artifact/URL, command output). Evidence is always welcome and is REQUIRED on tasks whose evidence_policy is 'required' (there, at least one strong kind — commit/pr/ci_check/deploy_sha/artifact_url — must be present; command_output alone is rejected). Evidence is a durable, falsifiable claim recorded on the task; it is not executed or verified by Delega.",
   {
     task_id: z.union([z.string(), z.number()]).describe("The task ID to complete"),
+    evidence: z
+      .array(z.object({
+        kind: z.enum(["commit", "pr", "ci_check", "deploy_sha", "artifact_url", "command_output"]).describe("Evidence type"),
+        ref: z.string().max(500).describe("The artifact reference: commit SHA, PR URL/number, CI run URL, deploy SHA, artifact URL, or command output"),
+        summary: z.string().max(500).optional().describe("Optional one-line note about what this evidence shows"),
+      }))
+      .max(5)
+      .optional()
+      .describe("Structured completion evidence; required when the task's evidence_policy is 'required'"),
   },
-  async ({ task_id }) => {
+  async ({ task_id, evidence }) => {
     try {
-      const task: any = await client.completeTask(task_id);
+      const task: any = await client.completeTask(task_id, evidence);
       let text = `Task #${task_id} completed.`;
       if (task?.next_occurrence) {
         text += `\nNext occurrence: ${task.next_occurrence}`;
@@ -1182,11 +1199,12 @@ const automationConditionSchema = z
 const automationActionSchema = z
   .object({
     type: z
-      .enum(["assign", "set_priority", "add_label", "add_comment", "create_task", "delegate"])
+      .enum(["assign", "set_priority", "add_label", "add_comment", "create_task", "delegate", "set_evidence_policy"])
       .describe("Action verb"),
     agent_id: z.string().optional().describe("Agent to assign/delegate to (assign, delegate)"),
     priority: z.number().int().min(1).max(4).optional().describe("Priority 1-4 (set_priority, create_task, delegate)"),
     label: z.string().optional().describe("Label to add (add_label)"),
+    policy: z.enum(["required"]).optional().describe("Evidence policy to set (set_evidence_policy) — only 'required'; rules can tighten, never remove"),
     content: z
       .string()
       .optional()
