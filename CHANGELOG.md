@@ -14,13 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with policy `required` cannot be completed without at least one strong
   evidence kind (command_output alone is rejected). Evidence renders on task
   detail; task list/detail shows a "required" policy marker. New automation
-  action `set_evidence_policy` (tighten-only). Evidence is a durable,
-  falsifiable claim — Delega stores it, it does not execute or verify it.
+  action `set_evidence_policy` (tighten-only and best-effort because automation
+  is asynchronous; create-time policy or a successful update while open is the
+  hard guarantee). Evidence is a durable, falsifiable claim — Delega stores it,
+  it does not execute or verify it.
 - Decision Answers (server-side; no new MCP tool). A task entering
   `waiting_input` now emails a signed single-use link to an answer page; the
   human's reply is written back as `human_stated` context + a comment, so a
-  later session resumes with the ruling. Agents mark answerable questions with
-  a `QUESTION:`/`OPTIONS:` block in the state detail.
+  later session resumes with the ruling. If the context cannot accept another
+  key, the one-use reply is preserved as a human-authored comment. Agents mark
+  answerable questions with a `QUESTION:`/`OPTIONS:` block in the state detail.
 
 ## [1.17.0] - 2026-07-23
 

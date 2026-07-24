@@ -91,7 +91,7 @@ Use `https://api.delega.dev` as the URL.
 | `create_webhook` | Create a webhook for event notifications: `task.created`, `task.updated`, `task.completed`, `task.deleted`, `task.assigned`, `task.delegated`, `task.commented`, `task.claimed`, `task.released`, `task.state_changed`, and `task.linked` (admin only) |
 | `delete_webhook` | Delete a webhook by ID (admin only) |
 | `list_automations` | List automation rules with run/failure counters (admin only). **Hosted API only.** |
-| `create_automation` | Create a when→then automation rule that runs in-process on task events — e.g. "when a task labeled `bug` is created, assign it to Codex at P3". Conditions are AND-combined from a closed vocabulary; actions: `assign`, `set_priority`, `add_label`, `add_comment`, `create_task`, `delegate` (admin only). **Hosted API only.** |
+| `create_automation` | Create a when→then automation rule that runs in-process on task events — e.g. "when a task labeled `bug` is created, assign it to Codex at P3". Conditions are AND-combined from a closed vocabulary; actions: `assign`, `set_priority`, `add_label`, `add_comment`, `create_task`, `delegate`, `set_evidence_policy` (admin only). **Hosted API only.** |
 | `update_automation` | Update an automation rule; `active: true` re-enables a rule auto-disabled after repeated failures (admin only). **Hosted API only.** |
 | `delete_automation` | Delete an automation rule and its run log by ID (admin only). **Hosted API only.** |
 | `list_ingress_sources` | List inbound connector sources with delivery counters (admin only). **Hosted API only.** |
@@ -101,7 +101,13 @@ Use `https://api.delega.dev` as the URL.
 
 ### Automations
 
-Automation rules react to the same events webhooks emit, but run inside Delega — no receiver to host. Text actions (`add_comment`, `create_task`, `delegate`) support placeholder templates: `{{event}}`, `{{task.id}}`, `{{task.content}}`, `{{task.priority}}`, `{{task.project_id}}`, `{{task.labels}}`, `{{task.due_date}}`. Safety semantics are enforced server-side: cascades cap at 3 hops and 25 total actions per originating event, a rule never reacts to a task it created, field-mutating actions never touch a task under another agent's live claim (`skipped_claimed` in the run log; `add_comment` is append-only and exempt, matching the manual comment gate), rule-created tasks are idempotent per action slot per source event and consume the normal task quota, and 10 consecutive failures auto-disable a rule. Assignment changes fire `task.updated` (not `task.assigned`), so trigger assignment-reactive rules on `task.updated`.
+Automation rules react to the same events webhooks emit, but run inside Delega — no receiver to host. Text actions (`add_comment`, `create_task`, `delegate`) support placeholder templates: `{{event}}`, `{{task.id}}`, `{{task.content}}`, `{{task.priority}}`, `{{task.project_id}}`, `{{task.labels}}`, `{{task.due_date}}`. `set_evidence_policy` only accepts `required`, never clears a policy, and is best-effort because automation runs asynchronously; set `evidence_policy` during task creation for a hard guarantee. Safety semantics are enforced server-side: cascades cap at 3 hops and 25 total actions per originating event, a rule never reacts to a task it created, field-mutating actions never touch a task under another agent's live claim (`skipped_claimed` in the run log; `add_comment` is append-only and exempt, matching the manual comment gate), rule-created tasks are idempotent per action slot per source event and consume the normal task quota, and 10 consecutive failures auto-disable a rule. Assignment changes fire `task.updated` (not `task.assigned`), so trigger assignment-reactive rules on `task.updated`.
+
+### Decision Answers
+
+When an agent is genuinely blocked on a human decision, report `waiting_input` with a detail block such as `QUESTION: <one line> / OPTIONS: <a / b / …>`. On the hosted API, the escalation email carries a hashed-at-rest, single-use answer link that expires after 72 hours. Its GET page is side-effect-free; the POST records the human reply as a task comment and a distinct `human_stated` context key for the next session to recall. There is no automatic resume.
+
+Escalation delivery has a 30-minute per-task cooldown. Re-entering `waiting_input` inside that window sends no second email, but the task remains visible in `fleet_attention`. If the task context is full or sustained concurrent writes prevent the context merge, the submitted one-use answer is preserved as a human-authored task comment.
 
 ### Inbound connectors (ingress)
 
