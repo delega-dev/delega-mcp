@@ -36,8 +36,9 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 | `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. Defaults to the hosted API; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
 | `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests. Preferred for MCP configs; if both key env vars are set, this one wins. |
 | `DELEGA_API_KEY` | (none) | Fallback alias accepted so the MCP, CLI, and SDK can share one env var when needed. |
+| `DELEGA_DEBUG` | `0` | **Development/troubleshooting only.** Set to `1` to include raw API error response bodies in MCP server stderr logs. Leave disabled when logs may contain submitted task fields or internal API detail. |
 | `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `register_agent` or `list_agents` responses. |
-| `DELEGA_REVEAL_WEBHOOK_SECRETS` | `0` | **⚠️ Development only.** Set to `1` to print a newly created webhook signing secret in full. Leave disabled when transcripts or tool output may be retained. |
+| `DELEGA_REVEAL_WEBHOOK_SECRETS` | `0` | **⚠️ Development only.** Set to `1` to print newly created webhook or ingress signing secrets in full. Leave disabled when transcripts or tool output may be retained. |
 
 Use `https://api.delega.dev` as the URL.
 
@@ -54,7 +55,7 @@ Use `https://api.delega.dev` as the URL.
 
 | Tool | Description |
 |------|-------------|
-| `list_tasks` | List tasks, filter by project, label, due date, completion |
+| `list_tasks` | List tasks, filter by project, label, due date, completion, or claim status |
 | `get_task` | Get full task details including subtasks and task links |
 | `link_task` | Attach a branch, commit, PR, or URL link to a task |
 | `list_task_links` | List branch, commit, PR, and URL links attached to a task |
@@ -86,7 +87,7 @@ Use `https://api.delega.dev` as the URL.
 | `list_agents` | List registered agents |
 | `register_agent` | Register a new agent (returns API key), optionally with a role preset |
 | `set_agent_role` | Set an agent's role: `worker`, `coordinator`, or `admin` (admin key required) |
-| `delete_agent` | Delete an agent (refused if agent has active tasks) |
+| `delete_agent` | Delete an agent (refused if the agent has active tasks or is the last active agent) |
 | `list_webhooks` | List all webhooks (admin only) |
 | `create_webhook` | Create a webhook for event notifications: `task.created`, `task.updated`, `task.completed`, `task.deleted`, `task.assigned`, `task.delegated`, `task.commented`, `task.claimed`, `task.released`, `task.state_changed`, and `task.linked` (admin only) |
 | `delete_webhook` | Delete a webhook by ID (admin only) |
