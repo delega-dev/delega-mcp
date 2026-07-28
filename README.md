@@ -1,8 +1,10 @@
 # delega-mcp
 
-MCP server for [Delega](https://delega.dev) — the task handoff layer for AI agents.
+> **Maintenance status:** Delega’s public hosted service retired on July 28, 2026. This client remains public as a verifiable engineering artifact and for Ryan McMillan’s existing private deployment. New public accounts and hosted access are not available. See the [case study](https://ryanmcmillan.com/delega).
 
-Connect any MCP-compatible client (Claude Code, Cursor, Codex, etc.) to Delega and manage tasks, projects, and agents through natural language.
+MCP server for Delega — a production task-coordination system for AI agents.
+
+The package is maintained only where Ryan’s private operational use requires it. The default hosted endpoint accepts existing owner credentials only.
 
 ## Install
 
@@ -39,7 +41,7 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 | `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `register_agent` or `list_agents` responses. |
 | `DELEGA_REVEAL_WEBHOOK_SECRETS` | `0` | **⚠️ Development only.** Set to `1` to print a newly created webhook signing secret in full. Leave disabled when transcripts or tool output may be retained. |
 
-Use `https://api.delega.dev` as the URL.
+Existing owner agents use `https://api.delega.dev`. This is not a public onboarding endpoint.
 
 ## Security Notes
 

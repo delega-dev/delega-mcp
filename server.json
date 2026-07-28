@@ -1,13 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.delega-dev/delega",
-  "description": "Task management API for AI agents. Create, delegate, and track tasks via MCP.",
+  "description": "Historical MCP client for Delega. Public hosted access retired July 28, 2026; existing owner credentials only.",
   "repository": {
     "url": "https://github.com/delega-dev/delega-mcp",
     "source": "github"
   },
   "version": "1.18.0",
-  "websiteUrl": "https://delega.dev",
+  "websiteUrl": "https://ryanmcmillan.com/delega",
   "packages": [
     {
       "registryType": "npm",
@@ -19,14 +19,14 @@
       "environmentVariables": [
         {
           "name": "DELEGA_API_KEY",
-          "description": "Agent API key from your Delega dashboard (delega.dev/dashboard)",
+          "description": "Existing Delega owner credential. Public hosted onboarding is retired.",
           "isRequired": true,
           "format": "string",
           "isSecret": true
         },
         {
           "name": "DELEGA_API_URL",
-          "description": "Delega API endpoint. Defaults to https://api.delega.dev (the hosted API). Custom /api-style endpoints are an advanced override.",
+          "description": "Delega API endpoint. The default https://api.delega.dev is an owner-only private runtime.",
           "isRequired": false,
           "format": "string",
           "isSecret": false
