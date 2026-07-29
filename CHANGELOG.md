@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.2] - 2026-07-28
+
+### Fixed
+- Shortened the retirement description to satisfy the MCP Registry's
+  100-character metadata limit. The longer 1.18.1 description published to npm
+  successfully but was rejected by the Registry before registration.
+
 ## [1.18.1] - 2026-07-28
 
 ### Changed
