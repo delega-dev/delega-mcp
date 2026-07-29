@@ -35,7 +35,7 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. Defaults to the hosted API; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
+| `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. The default is Ryan McMillan’s owner-only private runtime; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
 | `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests. Preferred for MCP configs; if both key env vars are set, this one wins. |
 | `DELEGA_API_KEY` | (none) | Fallback alias accepted so the MCP, CLI, and SDK can share one env var when needed. |
 | `DELEGA_REVEAL_AGENT_KEYS` | `0` | **⚠️ Development only.** Set to `1` to print full API keys in tool output. Never enable in production: a prompt-injected agent could exfiltrate keys from `register_agent` or `list_agents` responses. |
@@ -190,9 +190,11 @@ Recurring task tools manage templates. The hosted scheduler creates normal task 
   Assigned to: Reporter (#7)
 ```
 
-## Hosted API
+## Private runtime
 
-Delega is a hosted service. Point `DELEGA_API_URL` at `https://api.delega.dev` — free up to 1,000 tasks/month.
+`https://api.delega.dev` remains online for Ryan McMillan’s existing owner
+agents. It does not accept public accounts or credentials, and there is no
+public hosted plan to purchase.
 
 ## Links
 
