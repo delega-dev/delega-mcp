@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.3] - 2026-08-06
+
 ### Fixed
 - Read-only API calls now retry transient network failures up to three times
   within one 35-second deadline, while mutating calls remain single-attempt to
