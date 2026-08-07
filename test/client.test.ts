@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { DelegaClient } from "../src/delega-client.js";
+import { DelegaApiError, DelegaClient, DelegaNetworkError } from "../src/delega-client.js";
 
 function mockFetch(handler: (url: string, init?: RequestInit) => Response) {
   let calls = 0;
@@ -25,6 +25,100 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+function connectTimeoutError(address = "203.0.113.10:443") {
+  return Object.assign(new Error(`Connect Timeout Error (attempted address: ${address}, timeout: 10000ms)`), {
+    name: "ConnectTimeoutError",
+    code: "UND_ERR_CONNECT_TIMEOUT",
+  });
+}
+
+test("DelegaClient retries transient GET failures with one shared overall deadline", async () => {
+  let attempts = 0;
+  const signals: AbortSignal[] = [];
+  const mock = mockFetch((_url, init) => {
+    attempts++;
+    signals.push(init?.signal as AbortSignal);
+    if (attempts < 3) {
+      throw new TypeError("fetch failed", { cause: connectTimeoutError() });
+    }
+    return jsonResponse([{ id: "task-after-retry" }]);
+  });
+
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    const result: any = await client.listTasks({ completed: false });
+
+    assert.equal(result[0].id, "task-after-retry");
+    assert.equal(mock.calls, 3);
+    assert.equal(signals.length, 3);
+    assert.ok(signals[0] instanceof AbortSignal);
+    assert.ok(signals.every((signal) => signal === signals[0]), "all attempts share one deadline");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient does not retry mutations after a network failure", async () => {
+  const rootCause = connectTimeoutError();
+  const mock = mockFetch(() => {
+    throw new TypeError("fetch failed", { cause: rootCause });
+  });
+
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await assert.rejects(
+      () => client.createTask({ content: "must not retry" }),
+      (error: unknown) => {
+        assert.ok(error instanceof DelegaNetworkError);
+        assert.equal(error.attempts, 1);
+        assert.equal(error.method, "POST");
+        return true;
+      },
+    );
+    assert.equal(mock.calls, 1);
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient exposes the deepest undici cause after GET retries are exhausted", async () => {
+  const rootCause = connectTimeoutError("198.51.100.20:443");
+  const mock = mockFetch(() => {
+    throw new TypeError("fetch failed", { cause: rootCause });
+  });
+
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await assert.rejects(
+      () => client.getTask("task-123"),
+      (error: unknown) => {
+        assert.ok(error instanceof DelegaNetworkError);
+        assert.equal(error.attempts, 3);
+        assert.equal(error.code, "UND_ERR_CONNECT_TIMEOUT");
+        assert.equal(error.cause, rootCause);
+        assert.match(error.message, /ConnectTimeoutError \[UND_ERR_CONNECT_TIMEOUT\]/);
+        assert.match(error.message, /attempted address: 198\.51\.100\.20:443/);
+        return true;
+      },
+    );
+    assert.equal(mock.calls, 3);
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient keeps non-2xx API responses non-retryable", async () => {
+  const mock = mockFetch(() => jsonResponse({ error: "temporarily unavailable" }, 503));
+
+  try {
+    const client = new DelegaClient("https://api.delega.dev", "dlg_test_key");
+    await assert.rejects(() => client.listTasks({}), DelegaApiError);
+    assert.equal(mock.calls, 1);
+  } finally {
+    mock.restore();
+  }
+});
 
 test("DelegaClient.getTaskChain normalizes self-hosted {root: Task} to root_id", async () => {
   const selfHostedPayload = {

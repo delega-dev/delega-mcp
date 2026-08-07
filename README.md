@@ -43,6 +43,14 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 Existing owner agents use `https://api.delega.dev`. This is not a public onboarding endpoint.
 
+### Network resilience
+
+Read-only API calls retry transient network failures up to three attempts within
+a single 35-second deadline. Mutating calls (`POST`, `PUT`, and `DELETE`) are
+never retried automatically, which avoids duplicating a write when the server
+may have accepted it before the connection failed. Non-successful HTTP
+responses are surfaced immediately without retrying.
+
 ## Security Notes
 
 - Non-local `DELEGA_API_URL` values must use `https://`.

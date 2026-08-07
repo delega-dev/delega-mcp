@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Read-only API calls now retry transient network failures up to three times
+  within one 35-second deadline, while mutating calls remain single-attempt to
+  avoid duplicate writes. Network errors now expose the deepest runtime cause,
+  code, and attempted address when available.
+
+### Security
+- Updated the `fast-uri`, `hono`, and `ip-address` transitive dependency pins
+  to versions that resolve the current npm security advisories.
+- Added a seven-day Dependabot cooldown for npm and GitHub Actions updates.
+- Pinned the reviewed `esbuild` install-script approval and explicitly denied
+  `fsevents` install scripts under npm's new dependency-script policy.
+
 ## [1.18.2] - 2026-07-28
 
 ### Fixed
