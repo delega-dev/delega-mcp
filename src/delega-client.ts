@@ -1,5 +1,21 @@
 const DEFAULT_BASE_URL = "https://api.delega.dev";
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const REQUEST_DEADLINE_MS = 35_000;
+const MAX_GET_ATTEMPTS = 3;
+const RETRY_BASE_DELAY_MS = 125;
+const RETRYABLE_NETWORK_CODES = new Set([
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETDOWN",
+  "ENETUNREACH",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+  "UND_ERR_BODY_TIMEOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
 type ProjectRef = string | number;
 export type ContextSource = "human_stated" | "agent_inferred" | "agent_observed" | "imported";
 export type TaskLinkKind = "branch" | "commit" | "pr" | "url";
@@ -70,6 +86,105 @@ export class DelegaApiError extends Error {
   }
 }
 
+export class DelegaNetworkError extends Error {
+  method: string;
+  path: string;
+  attempts: number;
+  code?: string;
+
+  constructor(method: string, url: URL, attempts: number, error: unknown) {
+    const rootCause = deepestCause(error);
+    const causeName = errorField(rootCause, "name") || "NetworkError";
+    const causeCode = errorField(rootCause, "code");
+    const causeMessage = errorField(rootCause, "message") || String(rootCause);
+    const detail = `${causeName}${causeCode ? ` [${causeCode}]` : ""}: ${causeMessage}`;
+
+    super(
+      `Delega API ${method} ${url.pathname} failed after ${attempts} attempt${attempts === 1 ? "" : "s"}: ${detail}`,
+      { cause: rootCause instanceof Error ? rootCause : undefined },
+    );
+    this.name = "DelegaNetworkError";
+    this.method = method;
+    this.path = url.pathname;
+    this.attempts = attempts;
+    this.code = causeCode;
+  }
+}
+
+function errorField(error: unknown, field: "cause" | "code" | "message" | "name"): string | undefined {
+  if (typeof error !== "object" || error === null || !(field in error)) {
+    return undefined;
+  }
+  const value = (error as Record<string, unknown>)[field];
+  return typeof value === "string" ? value : undefined;
+}
+
+function errorCause(error: unknown): unknown {
+  if (typeof error !== "object" || error === null || !("cause" in error)) {
+    return undefined;
+  }
+  return (error as { cause?: unknown }).cause;
+}
+
+function deepestCause(error: unknown): unknown {
+  let current = error;
+  const seen = new Set<unknown>();
+
+  while (current !== undefined && current !== null && !seen.has(current)) {
+    seen.add(current);
+    const next = errorCause(current);
+    if (next === undefined || next === null) break;
+    current = next;
+  }
+
+  return current;
+}
+
+function isRetryableNetworkError(error: unknown): boolean {
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+  let hasCause = false;
+
+  while (current !== undefined && current !== null && !seen.has(current)) {
+    seen.add(current);
+    const code = errorField(current, "code");
+    const name = errorField(current, "name");
+    if (code && RETRYABLE_NETWORK_CODES.has(code)) return true;
+    if (name && /(?:Connect|Headers|Body)TimeoutError|SocketError/.test(name)) return true;
+
+    const next = errorCause(current);
+    if (next === undefined || next === null) break;
+    hasCause = true;
+    current = next;
+  }
+
+  // Standards-compliant fetch reports network failures as TypeError. Requiring
+  // a cause avoids retrying unrelated TypeErrors from request construction or
+  // response parsing.
+  return error instanceof TypeError && hasCause;
+}
+
+function retryDelayMs(completedAttempts: number): number {
+  const exponential = RETRY_BASE_DELAY_MS * 2 ** Math.max(0, completedAttempts - 1);
+  return Math.round(exponential * (0.5 + Math.random()));
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 function normalizeBaseUrl(rawUrl: string): string {
   const parsed = new URL(rawUrl);
   if (parsed.protocol !== "https:" && !LOCAL_API_HOSTS.has(parsed.hostname)) {
@@ -122,22 +237,48 @@ export class DelegaClient {
       headers["X-Agent-Key"] = this.agentKey;
     }
 
-    const res = await fetch(url.toString(), {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    const deadline = AbortSignal.timeout(REQUEST_DEADLINE_MS);
+    const maxAttempts = method === "GET" ? MAX_GET_ATTEMPTS : 1;
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new DelegaApiError(res.status, res.statusText, text);
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const res = await fetch(url.toString(), {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : undefined,
+          signal: deadline,
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new DelegaApiError(res.status, res.statusText, text);
+        }
+
+        if (res.status === 204) {
+          return undefined as T;
+        }
+
+        return (await res.json()) as T;
+      } catch (error) {
+        if (error instanceof DelegaApiError) throw error;
+
+        const isNetworkFailure = deadline.aborted || isRetryableNetworkError(error);
+        if (!isNetworkFailure) throw error;
+
+        if (method === "GET" && attempt < maxAttempts && !deadline.aborted) {
+          try {
+            await waitForRetry(retryDelayMs(attempt), deadline);
+            continue;
+          } catch (deadlineError) {
+            throw new DelegaNetworkError(method, url, attempt, deadlineError);
+          }
+        }
+
+        throw new DelegaNetworkError(method, url, attempt, deadline.aborted ? deadline.reason : error);
+      }
     }
 
-    if (res.status === 204) {
-      return undefined as T;
-    }
-
-    return res.json() as Promise<T>;
+    throw new Error("Unreachable Delega request state");
   }
 
   // ── Tasks ──
