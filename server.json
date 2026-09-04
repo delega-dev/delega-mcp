@@ -30,6 +30,20 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "DELEGA_CF_ACCESS_CLIENT_ID",
+          "description": "Cloudflare Access service-token client ID. Configure it together with DELEGA_CF_ACCESS_CLIENT_SECRET.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "DELEGA_CF_ACCESS_CLIENT_SECRET",
+          "description": "Cloudflare Access service-token secret. Configure it together with DELEGA_CF_ACCESS_CLIENT_ID.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
         }
       ]
     }

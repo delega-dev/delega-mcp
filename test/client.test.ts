@@ -33,6 +33,43 @@ function connectTimeoutError(address = "203.0.113.10:443") {
   });
 }
 
+test("DelegaClient sends paired Cloudflare Access service-token headers", async () => {
+  let capturedHeaders: Record<string, string> | undefined;
+  const mock = mockFetch((_url, init) => {
+    capturedHeaders = init?.headers as Record<string, string>;
+    return jsonResponse([]);
+  });
+
+  try {
+    const client = new DelegaClient(
+      "https://api.delega.dev",
+      "dlg_test_key",
+      "access-client-id",
+      "access-client-secret",
+    );
+    await client.listTasks({ completed: false });
+
+    assert.equal(capturedHeaders?.["CF-Access-Client-Id"], "access-client-id");
+    assert.equal(capturedHeaders?.["CF-Access-Client-Secret"], "access-client-secret");
+    assert.equal(capturedHeaders?.["X-Agent-Key"], "dlg_test_key");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("DelegaClient rejects partial Cloudflare Access configuration without exposing values", () => {
+  const secret = "must-not-appear-in-errors";
+  assert.throws(
+    () => new DelegaClient("https://api.delega.dev", "dlg_test_key", undefined, secret),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /Set both DELEGA_CF_ACCESS_CLIENT_ID and DELEGA_CF_ACCESS_CLIENT_SECRET/);
+      assert.doesNotMatch(error.message, new RegExp(secret));
+      return true;
+    },
+  );
+});
+
 test("DelegaClient retries transient GET failures with one shared overall deadline", async () => {
   let attempts = 0;
   const signals: AbortSignal[] = [];

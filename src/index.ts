@@ -26,6 +26,8 @@ import {
 const client = new DelegaClient(
   process.env.DELEGA_API_URL,
   process.env.DELEGA_AGENT_KEY || process.env.DELEGA_API_KEY,
+  process.env.DELEGA_CF_ACCESS_CLIENT_ID,
+  process.env.DELEGA_CF_ACCESS_CLIENT_SECRET,
 );
 
 const packageJson = JSON.parse(
