@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.4] - 2026-09-04
+
 ### Added
 - Added optional paired `DELEGA_CF_ACCESS_CLIENT_ID` and
   `DELEGA_CF_ACCESS_CLIENT_SECRET` support so private hosted deployments can
