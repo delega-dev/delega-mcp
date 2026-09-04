@@ -206,11 +206,30 @@ function pathSegment(value: string | number): string {
 export class DelegaClient {
   private baseUrl: string;
   private agentKey?: string;
+  private accessHeaders: Record<string, string>;
   private pathPrefix: string;
 
-  constructor(baseUrl?: string, agentKey?: string) {
+  constructor(
+    baseUrl?: string,
+    agentKey?: string,
+    accessClientId?: string,
+    accessClientSecret?: string,
+  ) {
     this.baseUrl = normalizeBaseUrl(baseUrl || DEFAULT_BASE_URL);
     this.agentKey = agentKey;
+    const hasAccessClientId = Boolean(accessClientId);
+    const hasAccessClientSecret = Boolean(accessClientSecret);
+    if (hasAccessClientId !== hasAccessClientSecret) {
+      throw new Error(
+        "Cloudflare Access configuration is incomplete. Set both DELEGA_CF_ACCESS_CLIENT_ID and DELEGA_CF_ACCESS_CLIENT_SECRET, or neither.",
+      );
+    }
+    this.accessHeaders = hasAccessClientId
+      ? {
+          "CF-Access-Client-Id": accessClientId!,
+          "CF-Access-Client-Secret": accessClientSecret!,
+        }
+      : {};
     // Hosted API (api.delega.dev) uses /v1/ prefix, custom /api-style endpoints use /api/
     this.pathPrefix = new URL(this.baseUrl).hostname === "api.delega.dev" ? "/v1" : "/api";
   }
@@ -232,6 +251,7 @@ export class DelegaClient {
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      ...this.accessHeaders,
     };
     if (this.agentKey) {
       headers["X-Agent-Key"] = this.agentKey;

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added optional paired `DELEGA_CF_ACCESS_CLIENT_ID` and
+  `DELEGA_CF_ACCESS_CLIENT_SECRET` support so private hosted deployments can
+  require Cloudflare Access service authentication in addition to agent keys.
+
+### Security
+- Updated the `fast-uri` and `qs` transitive pins to versions that resolve the
+  current npm runtime advisories.
+
 ## [1.18.3] - 2026-08-06
 
 ### Fixed
