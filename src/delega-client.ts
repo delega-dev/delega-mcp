@@ -230,8 +230,9 @@ export class DelegaClient {
           "CF-Access-Client-Secret": accessClientSecret!,
         }
       : {};
-    // Hosted API (api.delega.dev) uses /v1/ prefix, custom /api-style endpoints use /api/
-    this.pathPrefix = new URL(this.baseUrl).hostname === "api.delega.dev" ? "/v1" : "/api";
+    // Both deployed API environments use /v1; custom self-hosted servers use /api.
+    const hostname = new URL(this.baseUrl).hostname;
+    this.pathPrefix = hostname === "api.delega.dev" || hostname === "staging-api.delega.dev" ? "/v1" : "/api";
   }
 
   private async request<T>(

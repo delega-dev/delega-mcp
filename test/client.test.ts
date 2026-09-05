@@ -33,6 +33,32 @@ function connectTimeoutError(address = "203.0.113.10:443") {
   });
 }
 
+test("staging uses the hosted namespace and supports claims without widening custom-host gates", async () => {
+  const requests: string[] = [];
+  const mock = mockFetch((url) => {
+    requests.push(url);
+    return jsonResponse({ task: null });
+  });
+  try {
+    const staging = new DelegaClient("https://staging-api.delega.dev/", "dlg_fixture");
+    await staging.listTasks({ completed: false });
+    await staging.claimTask({ task_id: "fixture", lease_seconds: 1800 });
+    await staging.getUsage();
+    assert.deepEqual(requests, [
+      "https://staging-api.delega.dev/v1/tasks?completed=false",
+      "https://staging-api.delega.dev/v1/tasks/fixture/claim",
+      "https://staging-api.delega.dev/v1/usage",
+    ]);
+    const custom = new DelegaClient("https://custom.example.test", "dlg_fixture");
+    await custom.listTasks({});
+    assert.equal(requests.at(-1), "https://custom.example.test/api/tasks");
+    await assert.rejects(custom.claimTask({}), /only available/);
+    assert.equal(mock.calls, 4);
+  } finally {
+    mock.restore();
+  }
+});
+
 test("DelegaClient sends paired Cloudflare Access service-token headers", async () => {
   let capturedHeaders: Record<string, string> | undefined;
   const mock = mockFetch((_url, init) => {
