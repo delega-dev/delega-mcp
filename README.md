@@ -37,7 +37,7 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. The default is Ryan McMillan’s owner-only private runtime; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
+| `DELEGA_API_URL` | `https://api.delega.dev` | Delega API endpoint. The default is Ryan McMillan’s owner-only private runtime; `https://staging-api.delega.dev` uses the same `/v1` namespace with staging credentials; custom `/api`-style endpoints (e.g. `http://localhost:18890`) are an advanced override. |
 | `DELEGA_AGENT_KEY` | (none) | Agent API key for authenticated requests. Preferred for MCP configs; if both key env vars are set, this one wins. |
 | `DELEGA_API_KEY` | (none) | Fallback alias accepted so the MCP, CLI, and SDK can share one env var when needed. |
 | `DELEGA_CF_ACCESS_CLIENT_ID` | (none) | Cloudflare Access service-token client ID for protected deployments. Must be set together with `DELEGA_CF_ACCESS_CLIENT_SECRET`. |
