@@ -1,6 +1,6 @@
 {
   "name": "@delega-dev/mcp",
-  "version": "1.18.4",
+  "version": "1.18.5",
   "mcpName": "io.github.delega-dev/delega",
   "description": "MCP client for Delega, a retired public service preserved as production engineering proof",
   "type": "module",

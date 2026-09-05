@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.18.5] - 2026-09-05
+
+### Fixed
+- Requests to the canonical staging API now use the hosted `/v1` namespace and support hosted task claims. Custom self-hosted endpoints retain their existing behavior.
+
 ## [1.18.4] - 2026-09-04
 
 ### Added
