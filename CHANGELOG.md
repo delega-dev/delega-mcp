@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.0] - 2026-09-07
+
+### Added
+- Complete task discovery with actor-scoped totals, continuation offsets, and
+  filters for assignment, search, session state, and sort order.
+- Selected context keys, a compact current-state summary, and a paginated key
+  index. Full context and provenance history remain explicitly retrievable.
+- Content-bound text cursors for large task, context, and history reads.
+
+### Changed
+- Task discovery and detail reads default to a 6,000-character output budget.
+  Task details retrieve context separately; write acknowledgments and version
+  conflicts no longer echo the merged context archive.
+- CI and package publication gates now run the MCP regression tests in addition
+  to typechecking and building.
+
+### Upgrade notes
+- Deploy API pagination/selection support before updating this client. Older
+  array-only APIs cannot establish complete task discovery; the client reports
+  that limitation instead of silently treating a partial queue as complete.
+- Task offsets are not a snapshot across concurrent writes. Large JSON reads
+  are labeled fragments; follow the returned cursor with identical selectors.
+  A changed representation invalidates its cursor rather than mixing versions.
+
 ## [1.18.5] - 2026-09-05
 
 ### Fixed

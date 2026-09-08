@@ -70,7 +70,7 @@ responses are surfaced immediately without retrying.
 
 | Tool | Description |
 |------|-------------|
-| `list_tasks` | List tasks, filter by project, label, due date, completion, or claim status |
+| `list_tasks` | Compact complete pagination; filter by project, label, due date, completion, claim, assignee, search or session state |
 | `get_task` | Get full task details including subtasks and task links |
 | `link_task` | Attach a branch, commit, PR, or URL link to a task |
 | `list_task_links` | List branch, commit, PR, and URL links attached to a task |
@@ -84,7 +84,7 @@ responses are surfaced immediately without retrying.
 | `delegate_task` | Delegate a task: create a child task linked to a parent (parent status flips to `delegated`). Use this for multi-agent handoffs — `assign_task` does not create a delegation chain. |
 | `get_task_chain` | Return the full delegation chain for a task (root + descendants, sorted by depth) |
 | `update_task_context` | Merge keys into a task's persistent context blob (deep merge, not replace), recording provenance source |
-| `get_task_context` | Read a task's persistent context blob, optionally with per-key provenance |
+| `get_task_context` | Current summary/key index or exact key selection; bounded full access and per-key provenance |
 | `get_context_history` | Read the append-only provenance ledger for a task's context |
 | `recall` | Search decision-memory across ALL tasks — recall a prior decision/fact without knowing which task holds it. Ranked, human-stated weighted highest, scoped to what you can read. **Hosted API only.** |
 | `find_duplicate_tasks` | Check whether proposed task content is similar to existing open tasks (TF-IDF + cosine similarity). Call before `create_task` to avoid redundant work. |
@@ -133,46 +133,64 @@ Safety semantics are server-enforced: ingress can only *create* tasks; routing i
 
 ### Task output format
 
-Task list and detail outputs (`list_tasks`, `get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, and successful `claim_task`) render each task with assignment metadata when available:
+`list_tasks` returns single-line summaries with assignment/claim IDs, status,
+priority and applicable project/due/evidence/ingress markers. It defaults to 25
+tasks and a **6,000-character response budget**. If the budget fits fewer rows,
+`next_offset` advances only past the rows actually shown. Follow it with identical
+filters until `has_more=false`; a page is not the whole queue. Titles may be
+abbreviated. Pagination is offset-based, not a snapshot across concurrent writes.
 
-```
-[#42] Ship the release
-  Description: Cut RC, tag, push to npm
-  Project: Delega
-  Labels: release
-  Priority: 3
-  Due: 2026-04-20
-  Assigned to: Coordinator (#7)
-  Created by: planner (#3)
-  Completed: no
-```
+`get_task` returns bounded JSON details (including handoff, ownership, evidence,
+links and subtasks); context is read separately with `get_task_context`. Task
+mutations return compact acknowledgments with a handoff preview where present.
+Do not repeat a mutation to retrieve details: use the read tools.
 
-`Assigned to` / `Created by` / `Accountable` / `Completed by` lines are emitted only when the underlying field is populated. `Completed by` is shown only for completed tasks. Custom `/api`-style endpoints return a nested agent object so the assignee renders as `<display_name> (#id)`; the hosted `api.delega.dev` API returns the raw agent ID so it renders as `#<id>`.
+Summary example (the page header/footer also provides pagination):
 
-Tasks that are part of a delegation chain also surface the chain metadata:
-
-```
-[#def] Draft intro
-  Status: delegated
-  Assigned to: Drafter (#3)
-  Created by: Coordinator (#7)
-  Delegation: depth 1, parent #abc, root #abc
-  Delegated by: Coordinator (#7)
-  Completed: no
-  Context keys: step, findings (2)
+```text
+[#42] Ship the release | status=claimed | session=working | priority=3 | assigned=agent-a | claimed=agent-a | evidence=required
 ```
 
-Single-task tools (`get_task`, `create_task`, `update_task`, `assign_task`, `delegate_task`, and successful `claim_task`) use a detail render that pretty-prints the full `context` blob (truncated at 2000 chars). `update_task_context` shows the updated task detail when the API returns a task; otherwise it prints the merged context and version. `list_tasks` uses the concise list render which shows `Context keys: …` instead.
+Full JSON details preserve available creator, accountable-agent, completer,
+delegation-chain and source provenance fields. Ingress warnings remain visible
+in summaries, detail reads and mutation acknowledgments.
 
-Claimed tasks can include a session state inline with `Status`, for example `Status: claimed (waiting_input — "needs prod API key")`. `heartbeat_task` can set that state while extending the lease; `set_task_state` changes it without extending the lease.
+### Bounded context and history
 
-`get_task` also shows attached task links when present:
+`get_task_context` defaults to `view=summary`: canonical current-state keys and a
+paginated key index. Those keys are `current_state`, `objective`, `verified_state`,
+`constraints`, `latest_evidence`, `blocker`, and `next_step`. Older task-specific
+keys remain discoverable through `view=keys` and `key_offset`/`key_limit`.
+Supply `keys: ["exact,key", "old_history"]` for exact values (defaulting to full
+selection rather than the summary), or explicitly request `view=full` for all
+context. Missing selected keys are reported. Optional provenance covers only the
+selected values; the version guards the whole task context.
 
-```
-  Links:
-    branch: delega-dev/delega-api phase-3-github — https://github.com/delega-dev/delega-api/tree/phase-3-github
-    pr: delega-dev/delega-api 42 — https://github.com/delega-dev/delega-api/pull/42
-```
+`get_task`, `get_task_context` and `get_context_history` accept `max_chars`
+(1,000–16,000, default 6,000) and a text `cursor`. Small responses are complete JSON
+documents. Large responses are explicitly labeled JSON fragments: repeat the same
+selectors with the returned **Next text cursor**, then concatenate fragment bodies
+in order. Cursors bind to the exact document; concurrent changes invalidate them
+instead of silently combining versions. No history is silently truncated.
+
+For history, `limit` defaults to 25. Once the full current JSON page has been read,
+pass its API `next_cursor` as `history_cursor` to retrieve older ledger entries.
+That is distinct from a text cursor, which only continues the current page.
+
+`update_task_context` returns the resulting version and a bounded changed-key
+acknowledgment, never the merged archive. A version conflict means **no write was
+applied**: read the relevant keys, merge and explicitly retry with the fresh
+version. The client never automatically retries a mutation.
+
+Deploy the API pagination/context-selector support before upgrading the MCP.
+An older API's array response cannot establish complete pagination, so the tool
+reports that incompatibility rather than claiming a complete queue. Explicit
+`view=full` remains available for bounded legacy context reads.
+
+Claimed tasks include `session_state` and, in details, `session_state_detail`.
+`heartbeat_task` can set these while extending the lease; `set_task_state` changes
+state without extending it. `get_task` includes attached branch/commit/PR/URL
+records in its `links` array.
 
 ### Delegation chains
 

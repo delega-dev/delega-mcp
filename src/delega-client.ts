@@ -17,6 +17,19 @@ const RETRYABLE_NETWORK_CODES = new Set([
   "UND_ERR_SOCKET",
 ]);
 type ProjectRef = string | number;
+export interface TaskListOptions {
+  project_id?: ProjectRef; label?: string; due?: "today" | "upcoming" | "overdue";
+  completed?: boolean; claimed?: boolean; assigned_to?: string; search?: string;
+  state?: "working" | "waiting_input" | "errored"; sort?: "priority" | "updated" | "due" | "completed";
+  limit?: number; offset?: number;
+}
+export interface TaskPage {
+  items: Record<string, unknown>[]; total: number; limit: number; offset: number;
+  has_more: boolean; next_offset: number | null;
+}
+export interface ContextReadOptions {
+  view?: "summary" | "full" | "keys"; keys?: string[]; key_limit?: number; key_offset?: number;
+}
 export type ContextSource = "human_stated" | "agent_inferred" | "agent_observed" | "imported";
 export type TaskLinkKind = "branch" | "commit" | "pr" | "url";
 export type RecurrenceRuleType = "daily" | "weekly" | "monthly" | "yearly";
@@ -325,6 +338,22 @@ export class DelegaClient {
     return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}`);
   }
 
+  async listTaskPage(params: TaskListOptions = {}): Promise<TaskPage> {
+    const query: Record<string, string> = { include: "pagination", view: "summary", limit: String(params.limit ?? 25), offset: String(params.offset ?? 0) };
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined) query[key] = String(value);
+    }
+    const result = await this.request<TaskPage>("GET", `${this.pathPrefix}/tasks`, undefined, query);
+    if (!result || Array.isArray(result) || !Array.isArray(result.items) || !Number.isSafeInteger(result.total)
+      || result.total < 0 || result.offset !== (params.offset ?? 0) || result.limit !== (params.limit ?? 25)
+      || result.items.length > result.limit || result.has_more !== (result.offset + result.items.length < result.total)
+      || result.next_offset !== (result.has_more ? result.offset + result.items.length : null)
+      || (result.has_more && result.items.length === 0)) {
+      throw new Error("The API did not return valid task pagination metadata. Upgrade the API before using paginated list_tasks; this response cannot establish a complete queue. Known tasks remain accessible with get_task.");
+    }
+    return result;
+  }
+
   async listTaskLinks(taskId: string | number) {
     return this.request<unknown[]>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/links`);
   }
@@ -333,8 +362,13 @@ export class DelegaClient {
     return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/links`, link);
   }
 
-  async getTaskContext(taskId: string | number, includeProvenance?: boolean) {
-    const query = includeProvenance ? { include: "provenance" } : undefined;
+  async getTaskContext(taskId: string | number, includeProvenance?: boolean, options?: ContextReadOptions) {
+    const query: Record<string, string> = {};
+    if (includeProvenance) query.include = "provenance";
+    if (options?.view !== undefined) query.view = options.view;
+    if (options?.keys !== undefined) query.keys = JSON.stringify(options.keys);
+    if (options?.key_limit !== undefined) query.key_limit = String(options.key_limit);
+    if (options?.key_offset !== undefined) query.key_offset = String(options.key_offset);
     return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/context`, undefined, query);
   }
 
@@ -470,9 +504,11 @@ export class DelegaClient {
     return { context: (resp ?? {}) as Record<string, unknown> };
   }
 
-  async getContextHistory(taskId: string | number, key?: string) {
+  async getContextHistory(taskId: string | number, key?: string, options?: { limit?: number; cursor?: string }) {
     const query: Record<string, string> = {};
     if (key !== undefined) query.key = key;
+    if (options?.limit !== undefined) query.limit = String(options.limit);
+    if (options?.cursor !== undefined) query.cursor = options.cursor;
     return this.request<unknown>(
       "GET",
       `${this.pathPrefix}/tasks/${pathSegment(taskId)}/context/history`,

@@ -23,5 +23,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Regression tests (including stdio tool contracts)
+        run: npm test
+
       - name: Build
         run: npm run build
