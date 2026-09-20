@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { readFileSync } from "node:fs";
 import { z } from "zod";
+import { registerHumanRequestTools } from "./human-request-tools.js";
 import { DelegaApiError, DelegaClient, type ContextSource, type RecurrenceRuleType, type TaskLinkKind } from "./delega-client.js";
 import { contextConflict, contextWriteAck, formatTaskPage, pageDocument, taskMutationAck } from "./bounded-reads.js";
 import {
@@ -644,11 +645,15 @@ server.tool(
 
 // ── complete_task ──
 
+registerHumanRequestTools(server, client, toolErrorResult);
+
 server.tool(
   "complete_task",
   "Mark a task as completed. Attach `evidence` — structured proof the work happened (commit, PR, CI check, deploy SHA, artifact/URL, command output). Evidence is always welcome and is REQUIRED on tasks whose evidence_policy is 'required' (there, at least one strong kind — commit/pr/ci_check/deploy_sha/artifact_url — must be present; command_output alone is rejected). Evidence is a durable, falsifiable claim recorded on the task; it is not executed or verified by Delega.",
   {
     task_id: z.union([z.string(), z.number()]).describe("The task ID to complete"),
+    expected_revision: z.number().int().min(0).optional().describe("Current task revision; required for registered human requests"),
+    claim_generation: z.number().int().min(0).optional().describe("Current owned claim generation; required for registered human requests"),
     evidence: z
       .array(z.object({
         kind: z.enum(["commit", "pr", "ci_check", "deploy_sha", "artifact_url", "command_output"]).describe("Evidence type"),
@@ -659,9 +664,9 @@ server.tool(
       .optional()
       .describe("Structured completion evidence; required when the task's evidence_policy is 'required'"),
   },
-  async ({ task_id, evidence }) => {
+  async ({ task_id, evidence, expected_revision, claim_generation }) => {
     try {
-      const task: any = await client.completeTask(task_id, evidence);
+      const task: any = await client.completeTask(task_id, evidence, { expected_revision, claim_generation });
       let text = `Task #${task_id} completed.`;
       if (task?.next_occurrence) {
         text += `\nNext occurrence: ${task.next_occurrence}`;

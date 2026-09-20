@@ -406,12 +406,33 @@ export class DelegaClient {
     });
   }
 
-  async completeTask(taskId: string | number, evidence?: EvidenceItemInput[]) {
+  async completeTask(taskId: string | number, evidence?: EvidenceItemInput[],
+    snapshot?: { expected_revision?: number; claim_generation?: number }) {
+    const body = { ...(evidence && evidence.length ? { evidence } : {}), ...snapshot };
     return this.request<unknown>(
       "POST",
       `${this.pathPrefix}/tasks/${pathSegment(taskId)}/complete`,
-      evidence && evidence.length ? { evidence } : undefined,
+      Object.keys(body).length ? body : undefined,
     );
+  }
+
+  async registerHumanRequest(taskId: string, input: {
+    criteria: string[]; expected_revision: number; timeout_seconds?: number;
+  }) {
+    this.assertHostedClaiming("register_human_request");
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/human-request`,
+      { ...input, kind: "checklist", recipient_ref: "self" });
+  }
+
+  async getHumanRequest(taskId: string, result = false) {
+    this.assertHostedClaiming("get_human_request");
+    return this.request<unknown>("GET", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/human-request${result ? "/result" : ""}`);
+  }
+
+  async cancelHumanRequest(taskId: string, expectedVersion: number) {
+    this.assertHostedClaiming("cancel_human_request");
+    return this.request<unknown>("POST", `${this.pathPrefix}/tasks/${pathSegment(taskId)}/human-request/cancel`,
+      { expected_version: expectedVersion });
   }
 
   async deleteTask(taskId: string | number) {

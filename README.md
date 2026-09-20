@@ -68,8 +68,21 @@ responses are surfaced immediately without retrying.
 
 ## Tools
 
+The optional private human-request API exposes four tools below. Registration
+binds one checklist to an existing eligible task; it does not send a message,
+start a runner or approve execution. Equal retries replay the immutable request.
+Only the existing self recipient is supported. Status and result return protected
+reply evidence, with `result: null` until canonical completion; a completed
+checklist is human-attested, not independent physical verification. Cancellation
+uses the request version and leaves claim release to its current owner.
+The API must separately enable this feature; installing the MCP client does not.
+
 | Tool | Description |
 |------|-------------|
+| `register_human_request` | Register a held, evidence-required checklist on an existing task assigned to the configured runtime; maximum two prompts and 1,200 seconds |
+| `get_human_request` | Read immutable request scope, phase, request version and protected replies |
+| `get_human_result` | Read canonical completion evidence and the human-attested result, or null while unverified |
+| `cancel_human_request` | Record cancellation with `expected_version`; repeated cancellation is a no-op |
 | `list_tasks` | Compact complete pagination; filter by project, label, due date, completion, claim, assignee, search or session state |
 | `get_task` | Get full task details including subtasks and task links |
 | `link_task` | Attach a branch, commit, PR, or URL link to a task |
@@ -93,7 +106,7 @@ responses are surfaced immediately without retrying.
 | `heartbeat_task` | Extend the lease on a claimed task. Optionally report `working`, `waiting_input`, or `errored` plus detail while extending the lease. **Hosted API only.** |
 | `release_task` | Release a claimed task back to the queue without completing it. Pass an optional `handoff` note ("where I left off / why I stopped") that the next agent sees as a "Resuming from" line. **Hosted API only.** |
 | `set_task_state` | Report `working`, `waiting_input`, or `errored` on a claimed task without extending the lease. **Hosted API only.** |
-| `complete_task` | Mark a task as completed, optionally attaching structured `evidence` (commit/PR/CI check/deploy SHA/artifact/command output). Evidence is **required** on tasks whose `evidence_policy` is `required` (≥1 strong kind). |
+| `complete_task` | Mark a task as completed with optional structured `evidence`. Required-evidence tasks need a strong reference. Registered human requests also require current `expected_revision`, `claim_generation` and protected affirmative replies. |
 | `delete_task` | Delete a task permanently |
 | `add_comment` | Add a comment to a task |
 | `list_projects` | List all projects |
