@@ -10,7 +10,10 @@ const criterion = z.string().min(1).max(65).refine(
   "Use a short nonblank criterion without line breaks or option delimiters",
 );
 
-export function registerHumanRequestTools(server: McpServer, client: DelegaClient,
+export type HumanRequestClient = Pick<DelegaClient,
+  "registerHumanRequest" | "getHumanRequest" | "cancelHumanRequest">;
+
+export function registerHumanRequestTools(server: McpServer, client: HumanRequestClient,
   onError: (error: unknown) => CallToolResult) {
   const run = async (operation: () => Promise<unknown>): Promise<CallToolResult> => {
     try {

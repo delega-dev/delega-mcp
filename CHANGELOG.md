@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A separate `delega-human-requests-mcp` stdio entrypoint exposing only the four
+  existing human-request tools for a required host-configured task allowlist.
+  It preserves API results, rejects out-of-scope tasks before network calls,
+  and returns sanitized errors. No runtime activation or Muse compatibility is
+  implied; platform authentication and delayed-result contracts remain unverified.
+
 ## [1.19.0] - 2026-09-07
 
 ### Added
