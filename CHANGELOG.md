@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and returns sanitized errors. No runtime activation or Muse compatibility is
   implied; platform authentication and delayed-result contracts remain unverified.
 
+### Security
+- Refuse API redirects without forwarding requests, retaining redirect content
+  in errors, or retrying mutations. Configure the canonical API endpoint directly.
+
 ## [1.19.0] - 2026-09-07
 
 ### Added
