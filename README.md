@@ -56,6 +56,12 @@ never retried automatically, which avoids duplicating a write when the server
 may have accepted it before the connection failed. Non-successful HTTP
 responses are surfaced immediately without retrying.
 
+HTTP redirects are refused, including redirects to another path on the same
+host. Configure the canonical API endpoint directly. A redirect is reported as
+an API error and is never retried; its destination and response body are omitted
+from the error. This keeps authentication headers and mutation bodies at the
+configured endpoint.
+
 ## Security Notes
 
 - Non-local `DELEGA_API_URL` values must use `https://`.
