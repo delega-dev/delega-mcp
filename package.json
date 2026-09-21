@@ -5,13 +5,15 @@
   "description": "MCP client for Delega, a retired public service preserved as production engineering proof",
   "type": "module",
   "bin": {
-    "delega-mcp": "dist/index.js"
+    "delega-mcp": "dist/index.js",
+    "delega-human-requests-mcp": "dist/human-request-stdio.js"
   },
   "main": "dist/index.js",
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/HUMAN_REQUEST_CONNECTOR.md"
   ],
   "scripts": {
     "build": "tsup",

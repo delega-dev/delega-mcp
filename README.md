@@ -48,6 +48,14 @@ Add to your MCP client config (e.g. Claude Code `claude_code_config.json`):
 
 Existing owner agents use `https://api.delega.dev`. This is not a public onboarding endpoint.
 
+### Focused human-request connector
+
+Source builds also include `delega-human-requests-mcp`, a separate stdio server
+with only request registration, status, result, and cancellation for an explicit
+host-configured task allowlist. It reuses the released API contract and does not
+start a human run. See [setup, validation, and Muse compatibility limits](docs/HUMAN_REQUEST_CONNECTOR.md).
+Muse transport/account linking remains unverified; this is not a live Muse connector.
+
 ### Network resilience
 
 Read-only API calls retry transient network failures up to three attempts within
