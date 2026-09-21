@@ -75,9 +75,9 @@ test("connector preserves exact REST requests, read-only result retrieval and ca
     for (const phase of ["prepared", "awaiting_accept", "awaiting_result", "completion_pending", "incomplete",
       "declined", "needs_review", "expired", "cancellation_pending", "cancelled", "completed"]) {
       const result = phase === "completed" ? { verification: "human_attested", physical_state_independently_verified: false,
-        criteria: ["Room checked"], reported_at: "2026-09-20 20:22:11", verification_method: "task_bound_answer_capability" } : null;
+        criteria: ["Room checked"], reported_at: "2000-01-02 03:04:05", verification_method: "task_bound_answer_capability" } : null;
       snapshot = { task_id: taskId, phase, version: 7, result,
-        answers: phase === "incomplete" ? [{ phase: "result", answer: "I cannot confirm every item", requires_review: false, recorded_at: "2026-09-20 20:23:48" }] : [] };
+        answers: phase === "incomplete" ? [{ phase: "result", answer: "I cannot confirm every item", requires_review: false, recorded_at: "2000-01-02 03:04:06" }] : [] };
       const before = requests.length;
       for (const name of ["get_human_request", "get_human_result"]) {
         const received = await s.agent.callTool({ name, arguments: { task_id: taskId } });
