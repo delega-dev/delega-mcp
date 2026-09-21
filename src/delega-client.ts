@@ -281,7 +281,15 @@ export class DelegaClient {
           headers,
           body: body ? JSON.stringify(body) : undefined,
           signal: deadline,
+          redirect: "manual",
         });
+
+        // Credentials and mutation bodies belong only to the configured API.
+        // Do not follow redirects or retain their untrusted headers/body in errors.
+        if (res.status >= 300 && res.status < 400) {
+          await res.body?.cancel().catch(() => {});
+          throw new DelegaApiError(res.status, "Redirect refused", "");
+        }
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
