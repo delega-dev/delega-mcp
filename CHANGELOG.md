@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.19.1] - 2026-10-24
+
+### Security
+- Require patched supported Node runtimes (22.23.4, 24.22.1 or 26.12.1 and later patch releases).
+- Run CI and release builds on Node 24.22.1.
+- Update the MCP SDK, validation and HTTP dependency chains to clear the current npm advisories.
+
 ### Security
 - Refuse API redirects without forwarding requests, retaining redirect content
   in errors, or retrying mutations. Configure the canonical API endpoint directly.
